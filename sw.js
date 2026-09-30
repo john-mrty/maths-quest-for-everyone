@@ -1,9 +1,18 @@
-const CACHE = "maths-quest-everyone-v1";
+const CACHE = "maths-quest-everyone-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.js",
   "./manifest.webmanifest",
+  "./assets/avatars/fox.png",
+  "./assets/avatars/panda.png",
+  "./assets/avatars/cat.png",
+  "./assets/avatars/dog.png",
+  "./assets/avatars/unicorn.png",
+  "./assets/avatars/owl.png",
+  "./assets/avatars/turtle.png",
+  "./assets/avatars/shark.png",
+  "./assets/avatars/badger.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

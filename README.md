@@ -4,7 +4,7 @@ A private, offline-capable maths practice app for learners from 1st to 6th Class
 
 ## Included
 
-- On-device learner profiles with placeholder avatar choices
+- On-device learner profiles with nine illustrated avatar choices
 - Class-specific starting plans for 1st–6th Class
 - Practise, Explore and Later topic selection
 - Progressive tips for every generated question
