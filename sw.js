@@ -1,4 +1,4 @@
-const CACHE = "maths-quest-everyone-v3";
+const CACHE = "maths-quest-everyone-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
