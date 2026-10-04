@@ -1,8 +1,11 @@
-const CACHE = "maths-quest-everyone-v17";
+const CACHE = "maths-quest-everyone-v18";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.js",
+  "./cloud-config.js",
+  "./cloud.js",
+  "./vendor/supabase.js",
   "./manifest.webmanifest",
   "./assets/avatars/fox.png",
   "./assets/avatars/panda.png",
@@ -33,6 +36,12 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  // Auth/API responses and private photos must never enter the app-shell cache.
+  if (url.origin !== self.location.origin) return;
+  if (url.searchParams.has("code") || url.searchParams.has("error")) return;
+  const assets = new Set(APP_SHELL.map(path => new URL(path, self.location.href).pathname));
+  if (event.request.mode !== "navigate" && !assets.has(url.pathname)) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(
