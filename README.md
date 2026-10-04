@@ -8,7 +8,7 @@ A private, offline-capable maths practice app for learners from 1st to 6th Class
 - Class-specific starting plans for 1st–6th Class
 - Practise, Explore and Later topic selection
 - Progressive tips for every generated question
-- Lesson-scoped grid-paper scratchpad with finger and stylus drawing
+- Question-scoped grid-paper scratchpad with progressive help, pencil and eraser tools
 - Individual Beat Quest times-tables practice
 - Parent-gated learner, progress and play controls
 - Local progress export and import
