@@ -19,10 +19,10 @@
     $("cloudHeading").textContent = signedIn ? "Your parent account" : "Save across devices";
     $("welcomeSaving").textContent = signedIn
       ? "Signed in to your parent account. Profiles and progress save automatically across devices."
-      : "No account needed. Create a parent account in Grown-ups to save progress across devices.";
+      : "Play without an account. Sign in with Google to save across devices.";
     $("profileSaving").textContent = signedIn
       ? "Your parent account saves profiles and progress privately across devices. Changes save automatically when you’re online."
-      : "No account needed. Progress stays on this device. Create a parent account in Grown-ups to save across devices.";
+      : "Play without an account. Sign in with Google to save across devices.";
     $("accountSaving").textContent = signedIn
       ? "Profiles, photos, preferences and completed results save automatically. Offline changes stay on this device until they sync. Sign out on shared devices."
       : "Create a parent account with Google to save learner profiles, photos, preferences and completed results privately across devices. Playing without an account is always available.";
