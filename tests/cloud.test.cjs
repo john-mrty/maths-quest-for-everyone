@@ -102,7 +102,7 @@ test('sign out removes account cache and restores guest use',async()=>{
   assert.equal(f.elements.get('cloudIdentity').textContent,'');
   assert.equal(f.caches.has(f.userId),false);
   assert.equal(f.bridge.snapshot().learners[0].name,'guest');
-  assert.match(f.elements.get('profileSaving').textContent,/No account needed/);
+  assert.match(f.elements.get('profileSaving').textContent,/Play without an account/);
   assert.match(f.elements.get('avatarPhotoSaving').textContent,/Photos stay on this device/);
 });
 test('adding guest profiles uses new IDs and keeps account preferences',async()=>{
