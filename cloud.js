@@ -80,6 +80,7 @@
   }
   async function prepare(snapshot) {
     await Promise.all(snapshot.learners.map(async l => {
+      delete l.age;
       if (!l.photo) { delete l.photoPath; return; }
       const blob = await (await fetch(l.photo)).blob();
       if (blob.type !== "image/jpeg" || blob.size > 524288) throw Error("Please choose a smaller profile photo.");

@@ -45,7 +45,7 @@ write privileges. Temporary test users and rows were rolled back.
 
 ## Data and sync
 
-One `family_state` row per parent holds learner names, ages, class levels,
+One `family_state` row per parent holds learner names, class levels,
 avatar choice, learning plans, mastery totals, preferences and completed-result
 records. A JSON snapshot matches the existing app's data model and saves all
 profiles atomically. Photos are stored separately with immutable hashed paths;
