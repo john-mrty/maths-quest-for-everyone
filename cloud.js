@@ -5,7 +5,7 @@
   const bridge = window.mathsQuest;
   const $ = id => document.getElementById(id);
   const configured = Boolean(config.url && config.publishableKey && window.supabase);
-  let client, owner = null, revision = null, busy = false, conflict = false;
+  let client, owner = null, ownerEmail = "", revision = null, busy = false, conflict = false;
   let timer, migrationFingerprint = null, pendingUser = null;
   const metaKey = id => `mathsQuestCloudMeta:${id}`;
   const readMeta = id => { try { return JSON.parse(localStorage.getItem(metaKey(id)) || "{}"); } catch (_) { return {}; } };
@@ -16,6 +16,8 @@
   };
   function controls() {
     const signedIn = Boolean(owner);
+    $("cloudIdentity").hidden = !signedIn || !ownerEmail;
+    $("cloudIdentity").textContent = ownerEmail ? `Signed in as ${ownerEmail}` : "";
     $("cloudHeading").textContent = signedIn ? "Your parent account" : "Save across devices";
     $("welcomeSaving").textContent = signedIn
       ? "Signed in to your parent account. Profiles and progress save automatically across devices."
@@ -43,6 +45,7 @@
     $("cloudLoad").disabled = busy || bridge.inQuest();
     $("cloudSignOut").disabled = busy || bridge.inQuest();
     $("cloudImportGuest").disabled = busy || bridge.inQuest();
+    $("cloudImportGuest").hidden = !bridge.cached(null)?.learners?.length;
     $("cloudDeleteAccount").disabled = busy || bridge.inQuest();
     $("cloudDeleteAccount").hidden = !config.deleteAccountEnabled;
   }
@@ -162,13 +165,13 @@
     finally { busy = false; controls(); }
   }
   async function connect(user) {
-    if (owner === user.id) return;
+    if (owner === user.id) { ownerEmail = user.email || ""; controls(); return; }
     if (busy || bridge.inQuest()) { pendingUser = user; status("Finish your quest before changing accounts."); return; }
     pendingUser = null;
     busy = true; lockUi(true); controls();
     const oldOwner = bridge.owner();
     try {
-      owner = user.id;
+      owner = user.id; ownerEmail = user.email || "";
       const meta = readMeta(owner), cached = bridge.cached(owner);
       conflict = false; migrationFingerprint = meta.migrationFingerprint || null;
       revision = meta.revision ?? null;
@@ -211,7 +214,7 @@
       if (error) throw error;
       bridge.clearAccount(departing);
       localStorage.removeItem(metaKey(departing));
-      owner = null; revision = null; conflict = false; migrationFingerprint = null;
+      owner = null; ownerEmail = ""; revision = null; conflict = false; migrationFingerprint = null;
       bridge.replace(bridge.cached(null) || bridge.empty(), null);
       status("Signed out. Guest use is ready.");
     } catch (_) { status("Could not sign out. Please try again."); }
@@ -243,7 +246,7 @@
       if (error) throw error;
       bridge.clearAccount(owner); localStorage.removeItem(metaKey(owner));
       await client.auth.signOut({scope:"local"});
-      owner = null; revision = null; conflict = false;
+      owner = null; ownerEmail = ""; revision = null; conflict = false;
       bridge.replace(bridge.cached(null) || bridge.empty(), null);
       status("Your account and saved data have been deleted.");
     } catch (_) { status("Account deletion could not be completed. Please try again or contact support."); }

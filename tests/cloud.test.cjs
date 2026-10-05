@@ -21,7 +21,7 @@ async function fixture({remote=null,readError=null,cached=null,meta=null,offline
   const client={
     from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:remote,error:readError})})})}),
     rpc:async(name,args)=>{calls.push({name,args});return {data:remote?remote.revision+1:1,error:saveError};},
-    auth:{onAuthStateChange:()=>{},getSession:async()=>({data:{session:{user:{id:userId}}}}),signOut:async()=>({error:null}),
+    auth:{onAuthStateChange:()=>{},getSession:async()=>({data:{session:{user:{id:userId,email:"parent@example.test"}}}}),signOut:async()=>({error:null}),
       signInWithOAuth:async args=>{calls.push(args);return {error:null};}},
     storage:{from:()=>({upload:async()=>({error:null}),download:async()=>({error:Error('not found')})})},
     functions:{invoke:async()=>({error:null})}
@@ -41,6 +41,9 @@ async function fixture({remote=null,readError=null,cached=null,meta=null,offline
 test('new account migrates guest profiles and clears guest copy only after successful save',async()=>{
   const f=await fixture();
   assert.equal(f.calls.length,1);
+  assert.equal(f.elements.get('cloudIdentity').textContent,'Signed in as parent@example.test');
+  assert.equal(f.elements.get('cloudIdentity').hidden,false);
+  assert.equal(f.elements.get('cloudImportGuest').hidden,true);
   assert.equal(f.calls[0].args.expected_revision,null);
   assert.equal(f.calls[0].args.new_payload.learners[0].name,'guest');
   assert.equal(f.caches.has(null),false);
@@ -95,6 +98,8 @@ test('sign out removes account cache and restores guest use',async()=>{
   const f=await fixture({remote:{revision:1,payload:{learners:[profile('saved')],settings:{}}}});
   await f.elements.get('cloudSignOut').onclick();
   assert.equal(f.bridge.owner(),null);
+  assert.equal(f.elements.get('cloudIdentity').hidden,true);
+  assert.equal(f.elements.get('cloudIdentity').textContent,'');
   assert.equal(f.caches.has(f.userId),false);
   assert.equal(f.bridge.snapshot().learners[0].name,'guest');
   assert.match(f.elements.get('profileSaving').textContent,/No account needed/);
