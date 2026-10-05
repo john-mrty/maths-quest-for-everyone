@@ -39,6 +39,27 @@ enables Google and deletion; both still require end-to-end signed-in verificatio
 before merging this draft. The function revokes refresh sessions before deleting
 the user's stored photos and auth record.
 
+## Google sign-in branding
+
+The default Google screen identifies the callback as
+`iflmypdwnpaexvddbhbj.supabase.co`. Replace that technical presentation before
+promoting parent accounts:
+
+1. In Google Auth Platform > Branding, set the application name to **Maths
+   Quest**, add the app icon, homepage and privacy-policy URLs, add
+   `maths-quests.com` as an authorised domain, and submit the brand for
+   verification if Google requests it.
+2. For the clearest result, enable a Supabase custom domain such as
+   `auth.maths-quests.com` (paid add-on). Before activation, add
+   `https://auth.maths-quests.com/auth/v1/callback` to the Google OAuth client’s
+   authorised redirect URIs while retaining the existing project callback.
+3. After the custom domain is active, change `cloud-config.js` to use
+   `https://auth.maths-quests.com` and test sign-in, sign-out, account deletion
+   and cross-device restoration before release.
+
+Do not change the client URL before the Supabase custom domain and Google
+callback are both active; doing so would interrupt sign-in.
+
 Live SQL checks passed for parent isolation of family data and photo metadata,
 revision conflict rejection, denial of guest access, and absence of direct client
 write privileges. Temporary test users and rows were rolled back.

@@ -6,10 +6,10 @@ A private, offline-capable maths practice app for learners from 1st to 6th Class
 
 - On-device learner profiles with nine illustrated avatar choices
 - Class-specific starting plans for 1st–6th Class
-- Practise, Explore and Later topic selection
+- Per-profile topic plans plus focused Learn and Practise topic selection
 - Progressive tips for every generated question
 - Question-scoped grid-paper scratchpad with progressive help, pencil and eraser tools
-- Individual Beat Quest times-tables practice
+- Individual Beat Quest times-tables practice with class-aware defaults
 - Parent-gated learner, progress and play controls
 - Automatic account saving and completed-quest history
 - Optional parent accounts for saving across devices (requires Supabase setup)
