@@ -1,4 +1,4 @@
-const CACHE = "maths-quest-everyone-v18";
+const CACHE = "maths-quest-everyone-v19";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -41,14 +41,14 @@ self.addEventListener("fetch", event => {
   if (url.origin !== self.location.origin) return;
   if (url.searchParams.has("code") || url.searchParams.has("error")) return;
   const assets = new Set(APP_SHELL.map(path => new URL(path, self.location.href).pathname));
-  if (event.request.mode !== "navigate" && !assets.has(url.pathname)) return;
+  if (!assets.has(url.pathname)) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
         .then(response => {
           const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put("./index.html", copy));
+          if (response.ok) caches.open(CACHE).then(cache => cache.put("./index.html", copy));
           return response;
         })
         .catch(() => caches.match("./index.html"))

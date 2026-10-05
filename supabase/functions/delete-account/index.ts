@@ -20,6 +20,10 @@ Deno.serve(async request => {
   if (authError || !user) return new Response("{}", {status:401,headers});
   // Never accept a user ID from the request body.
   try {
+    // Revoke refresh sessions before deleting the user. Existing access JWTs
+    // expire normally; getUser rejects them once their user is deleted.
+    const revoked = await admin.auth.admin.signOut(token, "global");
+    if (revoked.error) throw revoked.error;
     const bucket = admin.storage.from("profile-photos");
     for (;;) {
       const {data,error} = await bucket.list(user.id, {limit:1000});

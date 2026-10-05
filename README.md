@@ -17,10 +17,11 @@ A private, offline-capable maths practice app for learners from 1st to 6th Class
 
 Guest play needs no account and keeps progress on the device. Optional parent
 accounts can privately save profiles, preferences, photos and completed results
-using Supabase. Google and Apple sign-in remain disabled until configuration and
-live verification are complete. See [setup instructions](supabase/SETUP.md).
+using Supabase. Google sign-in is configured; Apple is deferred. Signed-in
+verification remains required before releasing the draft integration. See
+[setup instructions](supabase/SETUP.md).
 
 There is no advertising or multiplayer ranking. Cookie-free analytics count
 anonymous activity events; learner information is not sent to analytics.
 
-Run the persistence checks with `node --test tests/cloud.test.cjs`.
+Run the checks with `node --test tests/*.test.cjs`.

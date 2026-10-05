@@ -33,6 +33,12 @@ Supabase project. No running quest or scratchpad is uploaded or restored.
 For this project, the production origin is `https://play.maths-quests.com` and
 the callback is `https://iflmypdwnpaexvddbhbj.supabase.co/auth/v1/callback`.
 The database and photo bucket were applied to that project on 4 October 2026.
+Google is configured in Supabase; Apple is deferred. The authenticated
+`delete-account` function was deployed on 5 October 2026. The browser config
+enables Google and deletion; both still require end-to-end signed-in verification
+before merging this draft. The function revokes refresh sessions before deleting
+the user's stored photos and auth record.
+
 Live SQL checks passed for parent isolation of family data and photo metadata,
 revision conflict rejection, denial of guest access, and absence of direct client
 write privileges. Temporary test users and rows were rolled back.
