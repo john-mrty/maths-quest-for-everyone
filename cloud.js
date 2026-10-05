@@ -15,11 +15,31 @@
     if (owner) localStorage.setItem(metaKey(owner), JSON.stringify({revision, dirty, migrationFingerprint}));
   };
   function controls() {
+    const signedIn = Boolean(owner);
+    $("cloudHeading").textContent = signedIn ? "Your parent account" : "Save across devices";
+    $("welcomeSaving").textContent = signedIn
+      ? "Signed in to your parent account. Profiles and progress save automatically across devices."
+      : "No account needed. Create a parent account in Grown-ups to save progress across devices.";
+    $("profileSaving").textContent = signedIn
+      ? "Your parent account saves profiles and progress privately across devices. Changes save automatically when you’re online."
+      : "No account needed. Progress stays on this device. Create a parent account in Grown-ups to save across devices.";
+    $("accountSaving").textContent = signedIn
+      ? "Profiles, photos, preferences and completed results save automatically. Offline changes stay on this device until they sync. Sign out on shared devices."
+      : "Create a parent account with Google to save learner profiles, photos, preferences and completed results privately across devices. Playing without an account is always available.";
+    const photoCopy = signedIn
+      ? "Photos are resized and saved privately in your parent account, with a copy on this device for offline use."
+      : "Photos stay on this device. A parent account can save them privately across devices.";
+    $("onboardPhotoSaving").textContent = photoCopy;
+    $("avatarPhotoSaving").textContent = photoCopy;
+    $("aboutSaving").textContent = signedIn
+      ? "You’re signed in to a parent account. Profiles, photos, preferences and completed results save privately across devices; offline changes sync when you reconnect."
+      : "No account is needed to play. Guest progress stays on this device; an optional parent account saves profiles, photos, preferences and completed results privately across devices.";
+
     $("cloudSignIn").hidden = Boolean(owner);
     $("cloudSignedIn").hidden = !owner;
     $("googleSignIn").hidden = !config.providers?.google;
     $("appleSignIn").hidden = !config.providers?.apple;
-    $("cloudRetry").disabled = busy || conflict;
+    $("cloudLoad").hidden = !conflict;
     $("cloudLoad").disabled = busy || bridge.inQuest();
     $("cloudSignOut").disabled = busy || bridge.inQuest();
     $("cloudImportGuest").disabled = busy || bridge.inQuest();
@@ -29,6 +49,7 @@
   function queuedSave() {
     if (!owner) return;
     metadata(true);
+    if (!conflict) status(navigator.onLine ? "Changes saved on this device. Saving across devices…" : "Saved on this device. Will sync when you’re online.");
     clearTimeout(timer);
     timer = setTimeout(() => sync(), 1200);
   }
@@ -103,14 +124,14 @@
       metadata(true);
       conflict = String(error.message).includes("SAVE_CONFLICT");
       status(conflict
-        ? "Another device has a newer save. Export this device’s progress, then load the latest save."
-        : "Your changes are safe on this device. Cloud saving failed; try again when online.");
+        ? "Another device has a newer save. Your changes are kept on this device. Choose which saved version to use."
+        : "Your changes are safe on this device. Cloud saving will retry automatically.");
       console.warn("Cloud save failed", error.message);
     } finally { busy = false; controls(); }
   }
   async function loadLatest() {
     if (busy || bridge.inQuest()) return;
-    if (readMeta(owner).dirty && !confirm("Replace this device’s unsynced progress with the latest cloud save? Export your progress first if you want to keep it.")) return;
+    if (readMeta(owner).dirty && !confirm("Use the latest saved version from another device? This will replace this device’s unsynced changes. Cancel to keep them.")) return;
     busy = true; lockUi(true); controls();
     try {
       const remote = await getRemote();
@@ -121,6 +142,24 @@
       status("Loaded your latest saved profiles.");
     } catch (_) { status("Could not load saved profiles. Your local progress has been kept."); }
     finally { busy = false; lockUi(false); controls(); }
+  }
+  async function refresh() {
+    if (!owner || busy || conflict || bridge.inQuest() || !navigator.onLine) return;
+    if (readMeta(owner).dirty) { await sync(); return; }
+    busy = true; controls();
+    const before = JSON.stringify(bridge.snapshot());
+    try {
+      const remote = await getRemote();
+      if (!remote || remote.revision === revision) return;
+      const payload = await hydrate(remote.payload);
+      // A parent may edit or start a quest while the download is in flight.
+      // Leave those local changes untouched; compare-and-save detects conflicts.
+      if (bridge.inQuest() || readMeta(owner).dirty || before !== JSON.stringify(bridge.snapshot())) return;
+      revision = remote.revision;
+      bridge.replace(payload, owner); metadata(false);
+      status("Saved across devices. Profiles are up to date.");
+    } catch (_) { /* Cached profiles remain available; retry on the next check. */ }
+    finally { busy = false; controls(); }
   }
   async function connect(user) {
     if (owner === user.id) return;
@@ -137,7 +176,7 @@
       if (cached && meta.dirty) {
         bridge.replace(cached, owner);
         conflict = (remote?.revision ?? null) !== revision;
-        status(conflict ? "Another device has a newer save. Export your local progress before loading it." : "Your local changes are waiting to sync.");
+        status(conflict ? "Another device has a newer save. Your changes are kept on this device. Choose which saved version to use." : "Your local changes are waiting to sync.");
       } else if (remote) {
         const payload = await hydrate(remote.payload);
         revision = remote.revision;
@@ -162,7 +201,7 @@
   }
   async function signOut(force = false) {
     if (busy || (!force && bridge.inQuest())) return;
-    if (!force && readMeta(owner).dirty && !confirm("Some changes have not synced. Export your progress before signing out, or cancel and try saving again. Sign out and remove this device’s account copy?")) return;
+    if (!force && readMeta(owner).dirty && !confirm("Some changes have not synced. Cancel to keep them and allow saving to retry. Sign out and remove this device’s account copy?")) return;
     if (force) bridge.endQuest();
     clearTimeout(timer);
     const departing = owner;
@@ -197,7 +236,7 @@
   }
   async function deleteAccount() {
     if (busy || bridge.inQuest()) return;
-    if (!confirm("Permanently delete your parent account, all saved profiles, photos and results? This cannot be undone. Export progress first if you want a copy.")) return;
+    if (!confirm("Permanently delete your parent account, all saved profiles, photos and results? This cannot be undone.")) return;
     busy = true; lockUi(true); controls(); clearTimeout(timer);
     try {
       const {error} = await client.functions.invoke("delete-account", {body:{}});
@@ -220,7 +259,7 @@
   });
   $("googleSignIn").onclick = () => login("google");
   $("appleSignIn").onclick = () => login("apple");
-  $("cloudRetry").onclick = sync;
+
   $("cloudLoad").onclick = loadLatest;
   $("cloudSignOut").onclick = () => signOut();
   $("cloudImportGuest").onclick = importGuest;
@@ -229,7 +268,11 @@
     if (pendingUser && !busy && !bridge.inQuest()) connect(pendingUser);
     else queuedSave();
   });
-  window.addEventListener("online", () => { if (owner && readMeta(owner).dirty) sync(); });
+  window.addEventListener("online", refresh);
+  window.addEventListener("focus", refresh);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+  // Also retry failed saves and pick up changes while this device stays open.
+  setInterval(refresh, 60000);
   // Defer SDK work outside the auth callback to avoid auth-lock deadlocks.
   client.auth.onAuthStateChange((event, session) => {
     if (session?.user) setTimeout(() => connect(session.user), 0);

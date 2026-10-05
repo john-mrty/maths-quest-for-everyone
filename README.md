@@ -11,7 +11,7 @@ A private, offline-capable maths practice app for learners from 1st to 6th Class
 - Question-scoped grid-paper scratchpad with progressive help, pencil and eraser tools
 - Individual Beat Quest times-tables practice
 - Parent-gated learner, progress and play controls
-- Local progress export and import, plus completed-quest history
+- Automatic account saving and completed-quest history
 - Optional parent accounts for saving across devices (requires Supabase setup)
 - Installable PWA and offline app shell
 

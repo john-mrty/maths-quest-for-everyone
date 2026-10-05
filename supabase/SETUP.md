@@ -54,7 +54,7 @@ are turned into local image data for offline use. There are no public photo URLs
 
 Saves use an atomic revision comparison. A stale or offline device cannot
 silently overwrite another device's newer snapshot. On conflict, automatic
-saving stops; the parent can export their local progress, then load the cloud
+saving stops; the parent can explicitly choose to replace their unsynced changes with the cloud
 save. Automatic multi-device conflict merging is deliberately deferred.
 
 Account data is cached under a separate local storage key, removed on sign-out.
@@ -64,8 +64,7 @@ new learners; settings already saved in the account take precedence.
 
 Existing cumulative progress is preserved. Individual completed results begin
 when this version is installed; old quest details cannot be reconstructed.
-Results history shows the newest 20 entries, but all entries remain stored and
-included in export. Free project limits and browser storage quotas still apply.
+Results history shows the newest 20 entries, but all entries remain stored in the account. Free project limits and browser storage quotas still apply.
 
 Deleting an account removes its private photos, its auth user and its family
 snapshot. A failed photo cleanup prevents auth deletion so it can be retried.

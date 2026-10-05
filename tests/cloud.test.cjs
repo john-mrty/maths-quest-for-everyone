@@ -26,10 +26,10 @@ async function fixture({remote=null,readError=null,cached=null,meta=null,offline
     storage:{from:()=>({upload:async()=>({error:null}),download:async()=>({error:Error('not found')})})},
     functions:{invoke:async()=>({error:null})}
   };
-  const context={document:{querySelector:()=>({inert:false}),getElementById:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);}},
+  const context={document:{addEventListener:(name,fn)=>events[name]=fn,querySelector:()=>({inert:false}),getElementById:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);}},
     localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     navigator:{onLine:!offline},location:{origin:'https://example.test',pathname:'/maths/'},
-    setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},structuredClone,
+    setInterval:()=>{},setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},structuredClone,
     confirm:()=>true,console:{warn:()=>{}},crypto:require('node:crypto').webcrypto};
   context.window={mathsQuest:bridge,MATHS_QUEST_CLOUD:{url:'https://project.test',publishableKey:'public',providers:{google:true,apple:true}},
     supabase:{createClient:()=>client},addEventListener:(name,fn)=>events[name]=fn};
@@ -51,6 +51,8 @@ test('existing account loads cloud profiles without silently merging guest data'
   assert.equal(f.bridge.snapshot().learners[0].name,'saved');
   assert.equal(f.calls.length,0);
   assert.equal(f.caches.has(null),true);
+  assert.match(f.elements.get('profileSaving').textContent,/Your parent account/);
+  assert.match(f.elements.get('accountSaving').textContent,/automatically/);
 });
 test('new account keeps guest data if cloud save fails',async()=>{
   const f=await fixture({saveError:Error('network')});
@@ -74,7 +76,7 @@ test('dirty stale device refuses to overwrite a newer cloud revision',async()=>{
     remote:{revision:3,payload:{learners:[profile('remote')],settings:{}}}});
   assert.equal(f.bridge.snapshot().learners[0].name,'local');
   assert.equal(f.calls.length,0);
-  assert.equal(f.elements.get('cloudRetry').disabled,true);
+  assert.equal(f.elements.get('cloudLoad').hidden,false);
   assert.match(f.elements.get('cloudStatus').textContent,/newer save/);
 });
 test('matching revision retries pending changes with compare-and-save',async()=>{
@@ -85,7 +87,7 @@ test('matching revision retries pending changes with compare-and-save',async()=>
 });
 test('server conflict retains local changes and disables further automatic saves',async()=>{
   const f=await fixture({saveError:Error('SAVE_CONFLICT')});
-  assert.equal(f.elements.get('cloudRetry').disabled,true);
+  assert.equal(f.elements.get('cloudLoad').hidden,false);
   assert.equal(JSON.parse(f.storage.get(`mathsQuestCloudMeta:${f.userId}`)).dirty,true);
   assert.equal(f.caches.has(null),true);
 });
@@ -95,6 +97,8 @@ test('sign out removes account cache and restores guest use',async()=>{
   assert.equal(f.bridge.owner(),null);
   assert.equal(f.caches.has(f.userId),false);
   assert.equal(f.bridge.snapshot().learners[0].name,'guest');
+  assert.match(f.elements.get('profileSaving').textContent,/No account needed/);
+  assert.match(f.elements.get('avatarPhotoSaving').textContent,/Photos stay on this device/);
 });
 test('adding guest profiles uses new IDs and keeps account preferences',async()=>{
   const f=await fixture({remote:{revision:1,payload:{learners:[profile('saved')],settings:{sound:false}}}});
@@ -108,7 +112,8 @@ test('edits made while a save is in flight remain dirty for the next save',async
   const f=await fixture({remote:{revision:1,payload:{learners:[profile('saved')],settings:{}}}});
   let finishSave;
   f.client.rpc=()=>new Promise(resolve=>{finishSave=resolve;});
-  const pending=f.elements.get('cloudRetry').onclick();
+  f.events['mathsquest:changed']();
+  const pending=f.timers.at(-1)();
   await settle();
   const changed=f.bridge.snapshot(); changed.learners[0].name='changed during save';
   f.bridge.replace(changed,f.userId); f.events['mathsquest:changed']();
@@ -116,4 +121,22 @@ test('edits made while a save is in flight remain dirty for the next save',async
   const meta=JSON.parse(f.storage.get(`mathsQuestCloudMeta:${f.userId}`));
   assert.equal(meta.revision,2); assert.equal(meta.dirty,true);
   assert.equal(f.bridge.snapshot().learners[0].name,'changed during save');
+});
+
+test('foreground check automatically loads a newer save on a clean device',async()=>{
+  const f=await fixture({remote:{revision:1,payload:{learners:[profile('saved')],settings:{}}}});
+  f.client.from=()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{revision:2,payload:{learners:[profile('updated elsewhere')],settings:{}}},error:null})})})});
+  await f.events.focus();
+  assert.equal(f.bridge.snapshot().learners[0].name,'updated elsewhere');
+  assert.equal(f.elements.get('cloudLoad').hidden,true);
+});
+test('foreground download never replaces edits made while fetching',async()=>{
+  const f=await fixture({remote:{revision:1,payload:{learners:[profile('saved')],settings:{}}}});
+  let finishRead;
+  f.client.from=()=>({select:()=>({eq:()=>({maybeSingle:()=>new Promise(resolve=>{finishRead=resolve;})})})});
+  const pending=f.events.focus();
+  const changed=f.bridge.snapshot();changed.learners[0].name='local edit';f.bridge.replace(changed,f.userId);f.events['mathsquest:changed']();
+  finishRead({data:{revision:2,payload:{learners:[profile('remote edit')],settings:{}}},error:null});await pending;
+  assert.equal(f.bridge.snapshot().learners[0].name,'local edit');
+  assert.equal(JSON.parse(f.storage.get(`mathsQuestCloudMeta:${f.userId}`)).dirty,true);
 });
