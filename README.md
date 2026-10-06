@@ -27,3 +27,10 @@ There is no advertising or multiplayer ranking. Cookie-free analytics count
 anonymous activity events; learner information is not sent to analytics.
 
 Run the checks with `node --test tests/*.test.cjs`.
+# Cloud Crossing
+
+Quest World includes a touch-friendly Three.js bridge-building prototype. Three crossings use addition (1st–2nd), equal groups (3rd–4th), or quarter-unit fractions (5th–6th). Completing all three earns a world decoration and saves a completed result. Closing early does not award progress.
+
+The scene is generated locally from geometric clay-style models and a procedural surface texture. Three.js 0.180.0 is bundled under `vendor/` with its MIT licence; no third-party asset requests are needed. The service worker caches the scene for offline use. Motion is reduced when requested by the device, audio follows the app setting, and resources are released when the scene closes. Devices without WebGL receive a message and can continue using the other games.
+
+Check bridge rules with `deno test --allow-read tests/island.test.mjs`. Physical iPad performance and child play-testing remain necessary before expanding this prototype into a larger world.

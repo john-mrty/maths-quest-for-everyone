@@ -1,0 +1,95 @@
+import * as T from './vendor/three.module.min.js';
+
+// Quarter-unit integers keep fractional bridge measurements exact.
+export function missionFor(level, round) {
+  if (level >= 5) return { target:[6,8,10][round], pieces:[1,2,3], fraction:true, equal:false };
+  if (level >= 3) return { target:[12,16,18][round], pieces:[2,3,4], equal:true, fraction:false };
+  return { target:[6,8,10][round], pieces:[1,2,3], equal:false, fraction:false };
+}
+export function fitsBridge(mission, pieces) {
+  return pieces.length>0 && pieces.every(n=>mission.pieces.includes(n)) && pieces.reduce((a,b)=>a+b,0)===mission.target && (!mission.equal || pieces.every(n=>n===pieces[0]));
+}
+function label(n,fraction) { if(!fraction)return String(n);const whole=Math.floor(n/4),part=['','¼','½','¾'][n%4];return `${whole||''}${part}`||'0'; }
+
+export function openIsland(learner, hooks) {
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dialog=document.createElement('dialog');dialog.className='island-dialog';dialog.setAttribute('aria-labelledby','islandTitle');
+  dialog.innerHTML=`<div class="island-shell"><header class="island-header"><div><span class="island-kicker">QUEST ISLAND · A PLAYABLE LITTLE WORLD</span><h2 id="islandTitle">Cloud Crossing</h2></div><button class="close" aria-label="Close Cloud Crossing">×</button></header><div class="island-stage"><div class="island-arrival"><span>Somewhere above the clouds…</span></div><div class="island-chapter">CROSSING <b>1 / 3</b></div><button class="island-view" aria-label="Look around the island">↻ <span>Look around</span></button><div class="island-caption">Help Pip find a way home.</div></div><section class="island-workbench"><div class="island-instruction"><div><p class="island-kicker" id="islandStep">BUILD A LITTLE POSSIBILITY</p><h3 id="islandTask"></h3><p id="islandExplain"></p></div><div class="island-meter" aria-label="Bridge length"><strong id="islandLength"></strong><span>length built</span></div></div><div class="island-tools"><div class="island-pieces" aria-label="Choose bridge pieces"></div><div class="island-actions"><button class="secondary" id="islandUndo">Undo</button><button class="secondary" id="islandHint">A little help</button><button class="primary" id="islandCheck">Try the bridge</button></div></div><p id="islandFeedback" role="status" aria-live="polite"></p></section></div>`;
+  document.body.appendChild(dialog);dialog.showModal();const $=s=>dialog.querySelector(s),stage=$('.island-stage');
+  let renderer,frame=0,disposed=false,round=0,pieces=[],locked=false,won=false,checks=0,helped=false,firstTry=0,independent=0,hints=0,mission=missionFor(learner.classLevel,0),yaw=0,viewYaw=0,crossedAt=0,crossing=false;
+  const started=performance.now(),geometries=new Set(),materials=new Set(),textures=new Set(),animated=[],blooms=[],confetti=[];
+  let observer;
+  function cleanup(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);observer?.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer?.dispose();renderer?.forceContextLoss();dialog.remove();hooks.close();}
+  dialog.addEventListener('close',cleanup,{once:true});$('.close').onclick=()=>dialog.close();
+  try{renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});}catch{
+    stage.innerHTML='<div class="island-unavailable"><h3>This island needs 3D graphics</h3><p>Try an up-to-date Safari or Chrome browser. Your other quests and mini-games are still ready to play.</p></div>';
+    $('.island-workbench').hidden=true;return;
+  }
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
+  renderer.domElement.setAttribute('aria-label','A floating garden island, with Pip waiting beside the bridge. Use the bridge-piece buttons below to build.');renderer.domElement.setAttribute('role','img');stage.prepend(renderer.domElement);
+  renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();locked=true;$('.island-caption').textContent='The island needs to reopen. Close this screen and try again.';});
+  const scene=new T.Scene();scene.fog=new T.Fog('#eadfed',28,65);
+  const camera=new T.PerspectiveCamera(35,1,.1,100),world=new T.Group();scene.add(world);
+  scene.add(new T.HemisphereLight('#fff3da','#b4a1ce',1.6));const sun=new T.DirectionalLight('#fff0cf',3.2);sun.position.set(-6,12,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-12;sun.shadow.camera.right=12;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-12;sun.shadow.normalBias=.035;scene.add(sun);
+  const rim=new T.DirectionalLight('#bceaff',2);rim.position.set(8,5,-8);scene.add(rim);
+  const textureCanvas=document.createElement('canvas');textureCanvas.width=textureCanvas.height=128;const ctx=textureCanvas.getContext('2d'),pixels=ctx.createImageData(128,128);let seed=42;function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+  for(let i=0;i<pixels.data.length;i+=4){const v=120+random()*24;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=v;pixels.data[i+3]=255;}ctx.putImageData(pixels,0,0);const grain=new T.CanvasTexture(textureCanvas);grain.wrapS=grain.wrapT=T.RepeatWrapping;grain.repeat.set(3,3);textures.add(grain);
+  const matCache=new Map();function mat(color,roughness=.84){const key=color+':'+roughness;if(!matCache.has(key)){const m=new T.MeshStandardMaterial({color,roughness,bumpMap:grain,bumpScale:.035});materials.add(m);matCache.set(key,m);}return matCache.get(key);}
+  function mesh(g,color,x=0,y=0,z=0,parent=world){geometries.add(g);const m=new T.Mesh(g,mat(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+  const sphere=new T.SphereGeometry(1,20,14);geometries.add(sphere);
+  function ball(color,x,y,z,sx,sy=sx,sz=sx,parent=world){const m=mesh(sphere,color,x,y,z,parent);m.scale.set(sx,sy,sz);return m;}
+  function rounded(w,h,d,r=.12){const s=new T.Shape(),x=-w/2,y=-h/2;r=Math.min(r,w/2,h/2);s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);const g=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:Math.min(r/2,.08),bevelThickness:.05,curveSegments:5});g.translate(0,0,-d/2);return g;}
+  function box(color,x,y,z,w,h,d,parent=world){return mesh(rounded(w,h,d),color,x,y,z,parent);}
+  function stem(color,a,b,r=.06,parent=world){const av=new T.Vector3(...a),bv=new T.Vector3(...b),delta=bv.clone().sub(av),m=mesh(new T.CylinderGeometry(r,r,delta.length(),8),color,0,0,0,parent);m.position.copy(av.add(bv).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),delta.normalize());return m;}
+  // Two soft, sculpted land masses; the open channel makes bridge length tangible.
+  [-1,1].forEach(side=>{
+    const x=side*4.1;ball('#ae91bb',x,-1.25,0,3.3,1.7,3.15);ball('#dac1b5',x,-.5,0,3.45,1.1,3.25);ball('#87c6a7',x,.02,0,3.5,.64,3.3);ball('#b5d59b',x,.28,-.05,3.22,.42,3.05);
+    for(let i=0;i<8;i++)ball(i%2?'#c7aec9':'#ad97b8',x+(random()-.5)*5,-1.15-random(),(random()-.5)*4,.35+random()*.65,.55,.5);
+  });
+  const river=box('#68cedb',0,-.24,0,2.5,.18,6.6);river.material=mat('#73d9dc',.24);
+  for(let i=0;i<7;i++){const fall=box(i%2?'#a1e9e3':'#69d0d9',-.99+i*.33,-1.6,3.23,.32,2.8,.16);animated.push({kind:'water',object:fall,phase:i});}
+  for(let i=0;i<20;i++){const drop=ball('#c0f3ed',-.98+random()*2,-random()*3,3.38,.035+random()*.045,.13,.04);animated.push({kind:'drop',object:drop,phase:random()*3});}
+  for(let i=0;i<11;i++){const ripple=box('#b2f5e8',(random()-.5)*1.8,-.08,(random()-.5)*5,.12+random()*.55,.025,.035);animated.push({kind:'ripple',object:ripple,phase:i});}
+  // Winding stepping-stone paths.
+  [-1,1].forEach(side=>{for(let i=0;i<6;i++){const p=ball('#f6dcad',side*(2.1+i*.48),.71,-.1+Math.sin(i*.7)*.2,.3,.085,.37);p.rotation.y=i*.4;}});
+  function tree(x,z,size,color){const g=new T.Group();g.position.set(x,.65,z);g.scale.setScalar(size);world.add(g);stem('#b98a72',[0,0,0],[.08,1.55,0],.17,g);stem('#b98a72',[0,.8,0],[-.45,1.65,0],.09,g);[[0,1.95,0,.87],[-.53,1.65,.1,.65],[.52,1.7,.05,.7],[.14,2.35,-.15,.62]].forEach(([a,b,c,r])=>ball(color,a,b,c,r,r*.85,r,g));animated.push({kind:'tree',object:g,phase:x});}
+  tree(-5.1,-1.55,1.35,'#efa2b2');tree(-2.7,-2.05,.9,'#d4b3e2');tree(5.6,-1.6,1,'#82bdad');tree(6,1.25,.75,'#c7d88d');
+  // A miniature cottage with a curved roof, round window, porch and chimney.
+  const cottage=new T.Group();cottage.position.set(4.25,.68,-1.25);cottage.rotation.y=-.16;world.add(cottage);
+  box('#fff0ce',0,.65,0,1.55,1.3,1.4,cottage);const roof=mesh(new T.ConeGeometry(1.4,1.1,4), '#c77b99',0,1.8,0,cottage);roof.rotation.y=Math.PI/4;roof.scale.z=.93;
+  box('#966986',.05,.35,.74,.44,.7,.1,cottage);ball('#f3d691',.19,.37,.83,.035,.035,.035,cottage);
+  mesh(new T.TorusGeometry(.23,.075,8,24),'#f1c18e',-.45,.9,.76,cottage);ball('#73bec9',-.45,.9,.745,.19,.19,.035,cottage);box('#d898a8',.65,1.75,-.22,.25,.65,.28,cottage);
+  for(let i=0;i<3;i++){const smoke=ball('#fff5ef',.65,2.25+i*.32,-.22,.13+i*.05,.15,.13,cottage);animated.push({kind:'smoke',object:smoke,phase:i});}
+  // Tiny flowers, pebbles and curling grass provide scale and material detail.
+  for(let i=0;i<55;i++){const side=i%2?1:-1,x=side*(2.1+random()*3.9),z=(random()-.5)*4.6;if(Math.abs(z)<.6||side===1&&z<-.4)continue;const h=.14+random()*.22;stem('#669d82',[x,.6,z],[x,.6+h,z],.025);const flower=ball(['#ffe3a0','#f49cac','#ece5ff'][i%3],x,.65+h,z,.11,.075,.11);blooms.push(flower);}
+  for(let i=0;i<8;i++){const x=-2.5-random()*3,z=1+random()*1.1;stem('#eadac8',[x,.55,z],[x,.8,z],.055);ball('#dd8b9f',x,.87,z,.19,.11,.19);ball('#fff4df',x+.055,.95,z+.025,.035);}
+  // Rope posts frame the crossing without obscuring the pieces.
+  [-1,1].forEach(side=>{[-.65,.65].forEach(z=>{stem('#b58571',[side*1.6,.45,z],[side*1.6,1.35,z],.075);ball('#ffe0b1',side*1.6,1.4,z,.11);});});
+  const bridge=new T.Group();world.add(bridge);
+  const guide=box('#e9d8ba',0,.58,0,3.1,.045,1.05);guide.material=new T.MeshStandardMaterial({color:'#fff3ce',transparent:true,opacity:.25,roughness:1});materials.add(guide.material);
+  function creature(color,x,z,scale=1){const g=new T.Group();world.add(g);g.position.set(x,.85,z);g.scale.setScalar(scale);ball(color,0,.38,0,.34,.43,.28,g);ball(color,-.19,.86,0,.11,.3,.1,g);ball(color,.19,.86,0,.11,.3,.1,g);ball('#fff0d7',0,.3,.24,.22,.22,.065,g);[-1,1].forEach(s=>{ball('#3d354e',s*.115,.55,.257,.047,.06,.03,g);ball('#ffffff',s*.115-.008,.57,.28,.013,.015,.01,g);ball('#efa3a9',s*.21,.43,.235,.06,.032,.03,g);ball(color,s*.19,.04,.1,.15,.09,.18,g);});ball('#8b6170',0,.44,.29,.035,.023,.02,g);return g;}
+  const pip=creature('#f1bd78',-2.2,0),friend=creature('#b8a1db',2.6,.6,.72);animated.push({kind:'friend',object:friend,phase:0});
+  const clouds=[];for(let i=0;i<11;i++){const g=new T.Group();world.add(g);g.position.set((random()-.5)*24,-3.4+random()*1.3,(random()-.5)*14);for(let j=0;j<4;j++)ball('#fff2ee',j*.65,Math.sin(j)*.17,0,.75,.38,.58,g);clouds.push(g);}
+  for(let i=0;i<6;i++){const orb=ball('#ffdc98',(random()-.5)*12,2+random()*2,(random()-.5)*7,.04);animated.push({kind:'firefly',object:orb,phase:i});}
+  const raycaster=new T.Raycaster(),pointer=new T.Vector2();renderer.domElement.addEventListener('pointerup',e=>{if(locked||crossedAt||won||!pieces.length)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(bridge.children,false)[0];if(hit){pieces.splice(hit.object.userData.index,1);rebuild();hooks.sound?.('press');}});
+  function rebuild(){while(bridge.children.length){const child=bridge.children.pop();child.parent=null;child.geometry.dispose();geometries.delete(child.geometry);}let offset=-1.55;pieces.forEach((n,i)=>{const width=n/mission.target*3.1,m=box(['#edb778','#ddb1d4','#97cfc2'][mission.pieces.indexOf(n)],offset+width/2,.74,0,Math.max(.045,width-.035),.19,.99,bridge);m.userData={index:i,land:performance.now()+i*12};m.rotation.z=(random()-.5)*.035;offset+=width;});update();}
+  function update(){const total=pieces.reduce((a,b)=>a+b,0);$('#islandLength').textContent=`${label(total,mission.fraction)} / ${label(mission.target,mission.fraction)}`;$('#islandUndo').disabled=locked||!pieces.length;$('.island-pieces').querySelectorAll('button').forEach(b=>b.disabled=locked);$('#islandCheck').disabled=locked;}
+  function prompt(){$("#islandHint").disabled=false;mission=missionFor(learner.classLevel,round);pieces=[];checks=0;helped=false;locked=false;crossing=false;pip.position.set(-2.2,.85,0);$('.island-chapter b').textContent=`${round+1} / 3`;$('#islandTask').textContent=`Build a bridge ${label(mission.target,mission.fraction)} units long.`;$('#islandExplain').textContent=mission.equal?'Use boards of the same length. How many will reach the other side?':'Tap pieces to join their lengths. Reach the other bank exactly.';$('#islandFeedback').textContent='Tap a placed piece to remove it, or use Undo.';$('#islandCheck').textContent='Try the bridge';$('.island-pieces').replaceChildren();mission.pieces.forEach((n,i)=>{const b=document.createElement('button');b.className='island-piece';b.style.setProperty('--piece',['#edb778','#ddb1d4','#97cfc2'][i]);b.innerHTML=`<span class="island-plank" aria-hidden="true">${'•'.repeat(n)}</span><strong>${label(n,mission.fraction)} <small>${n===1&&!mission.fraction?'unit':'units'}</small></strong>`;b.setAttribute('aria-label',`Add ${label(n,mission.fraction)} unit piece`);b.onclick=()=>{if(locked)return;if(pieces.reduce((a,b)=>a+b,0)+n>mission.target){checks++;$('#islandFeedback').textContent='That piece would go past the bank. Try a shorter piece, or undo one.';hooks.sound?.('wrong');return;}pieces.push(n);rebuild();$('#islandFeedback').textContent=`${pieces.map(p=>label(p,mission.fraction)).join(' + ')} = ${label(pieces.reduce((a,b)=>a+b,0),mission.fraction)} units`;hooks.sound?.('press');};$('.island-pieces').appendChild(b);});rebuild();}
+  $('#islandUndo').onclick=()=>{if(!locked){pieces.pop();rebuild();$('#islandFeedback').textContent='Try another combination.';}};
+  $('#islandHint').onclick=()=>{if(locked)return;if(!helped){hints++;helped=true;}$('#islandFeedback').textContent=mission.fraction?'Each dot on a piece is one quarter. Four quarters make one whole. Join the pieces and count the quarters.':mission.equal?`Try ${mission.target%3===0?3:2}-unit boards. Count in ${mission.target%3===0?'threes':'twos'} until you reach ${mission.target}.`:`Add the lengths as you go. You need ${mission.target-pieces.reduce((a,b)=>a+b,0)} more units to reach the other bank.`;};
+  $('#islandCheck').onclick=()=>{
+    if(won){dialog.close();return;}if(locked)return;
+    if(crossedAt){crossedAt=0;round++;prompt();return;}
+    checks++;if(!fitsBridge(mission,pieces)){$('#islandFeedback').textContent=mission.equal&&new Set(pieces).size>1?'This crossing needs equal-length boards. Remove a piece and make all the boards the same length.':`There’s still a gap of ${label(mission.target-pieces.reduce((a,b)=>a+b,0),mission.fraction)} units. Add another piece.`;hooks.sound?.('wrong');return;}
+    if(checks===1){firstTry++;if(!helped)independent++;}locked=true;crossing=true;crossedAt=performance.now();$('#islandFeedback').textContent=mission.equal?`${pieces.length} × ${pieces[0]} = ${mission.target}. Equal boards make a perfect crossing!`:'A perfect fit! Watch Pip cross your bridge.';$('.island-caption').textContent='Small pieces. A big adventure.';hooks.sound?.('correct');update();
+  };
+  $('.island-view').onclick=()=>{viewYaw=viewYaw===0?-.45:0;};
+  function finishCrossing(){crossing=false;locked=false;if(round===2){won=true;const reward=hooks.complete({firstTry,independent,hints});$('#islandStep').textContent='YOU MADE A WAY';$('#islandTask').textContent='Three bridges. One happy little island.';$('#islandExplain').textContent=reward?`${reward.name} unlocked for your Quest World.`:'Another adventure added to your Quest World.';$('#islandFeedback').textContent='Pip is home. Take a moment to enjoy what you built.';$('.island-caption').textContent='Home, at last.';$('.island-pieces').querySelectorAll('button').forEach(b=>b.disabled=true);$('#islandUndo').disabled=true;$('#islandHint').disabled=true;$('#islandCheck').disabled=false;$('#islandCheck').textContent='Back to my world';hooks.sound?.('finish');if(!reduced&&hooks.celebrations!==false)for(let i=0;i<55;i++){const m=box(['#ffdb7d','#ef9bac','#a8dfd0'][i%3],(random()-.5)*8,3+random()*4,(random()-.5)*5,.09,.13,.025);confetti.push(m);}}else{$('#islandCheck').disabled=false;$('#islandCheck').textContent='Next crossing';$('#islandUndo').disabled=true;$('#islandHint').disabled=true;}}
+  function resize(){const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}observer=new ResizeObserver(resize);observer.observe(stage);prompt();resize();
+  function tick(now){if(disposed)return;frame=requestAnimationFrame(tick);if(document.hidden)return;const t=(now-started)/1000,intro=reduced?1:Math.min(t/1.6,1),ease=1-Math.pow(1-intro,3);yaw+=(viewYaw-yaw)*.045;const dist=Math.max(15,25/camera.aspect);camera.position.set(Math.sin(.12+yaw)*dist,dist*.53+(1-ease)*3,Math.cos(.12+yaw)*dist+(1-ease)*6);camera.lookAt(0,-.1,0);$('.island-arrival').style.opacity=String(1-ease);$('.island-arrival').style.pointerEvents='none';
+    if(!reduced){animated.forEach(({kind,object:o,phase:p})=>{if(kind==='water')o.scale.y=1+Math.sin(t*2+p)*.035;else if(kind==='drop')o.position.y=.1-((t*1.7+p)%3.4);else if(kind==='tree')o.rotation.z=Math.sin(t*.6+p)*.016;else if(kind==='ripple')o.scale.x=.8+Math.sin(t*1.5+p)*.2;else if(kind==='smoke'){o.scale.setScalar(.13+p*.05+Math.sin(t+p)*.02);o.material.transparent=true;o.material.opacity=.65;}else if(kind==='friend')o.rotation.z=Math.sin(t*2)*.06;else if(kind==='firefly')o.position.y+=Math.sin(t+p)*.002;});clouds.forEach((c,i)=>c.position.x+=Math.sin(t*.1+i)*.0015);bridge.children.forEach(m=>{const a=Math.max(0,(now-m.userData.land)/1000);m.position.y=.74+Math.exp(-a*12)*Math.cos(a*20)*.5;});confetti.forEach((m,i)=>{m.position.y-=.025;m.rotation.x+=.04;m.rotation.z+=.03;if(m.position.y<-2)m.visible=false;});}
+    if(crossing){const p=Math.min((now-crossedAt)/(reduced?500:2400),1);pip.position.x=-2.2+p*4.8;pip.position.y=.85+(reduced?0:Math.abs(Math.sin(p*Math.PI*9))*.17);pip.rotation.z=reduced?0:Math.sin(p*Math.PI*18)*.04;if(p===1)finishCrossing();}
+    if(!crossing&&!reduced)pip.rotation.z=Math.sin(t*1.6)*.035;
+    renderer.render(scene,camera);
+  }frame=requestAnimationFrame(tick);
+}
