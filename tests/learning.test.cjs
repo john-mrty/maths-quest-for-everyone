@@ -13,12 +13,49 @@ function harness(){
   const context={console,Date,Math:Object.create(Math),crypto:{randomUUID},navigator:{},matchMedia:()=>({matches:true}),localStorage:{getItem:()=>null,setItem(){}},Event:class {},scrollTo(){},requestAnimationFrame(){},setTimeout:fn=>{timeouts.push(fn);return timeouts.length},clearTimeout(){},setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval(){},window:{addEventListener(){},dispatchEvent(){},questAdventure:{journey(){},award:()=>null,results(){}}},document:{hidden:false,querySelector:get,querySelectorAll:s=>s==='.answer'?buttons:[],createElement:element,createElementNS:element}};
   vm.createContext(context);
   let seed=41;context.Math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-const expose=`window.test={makeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
+const expose=`window.test={makeQuestion,makeChallengeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
     begin(level=1){data=fresh();data.learners=[{id:"test",name:"Test",classLevel:level,plan:planFor(level),mastery:{},completedResults:[],sessions:0,totalCorrect:0,totalAttempts:0,helped:0,beat:{attempts:0,correct:0,tokens:0,best:0}}];activeId="test";selectedTables=new Set([2]);session={index:0,total:12,usedQuestions:new Set(),scratchpad:[],locked:false,correct:0,independent:0,score:0};},
     session:()=>session,learner,topics:TOPICS,mode:value=>playMode=value,topic:value=>questTopic=value,hint:value=>hintLevel=value};`;
   vm.runInContext(source.replace('setup();\n})();',expose+'\n})();'),context);
   return {api:context.window.test,elements,get,buttons,timeouts,intervals,context};
 }
+
+test('Practise gives more attention to topics with errors or frequent help',()=>{
+ const {api}=harness();api.begin();api.mode('practice');
+ const l=api.learner();
+ for(const id of Object.keys(l.plan))l.plan[id]='later';
+ for(const id of ['add20','sub20','place100'])l.plan[id]='practice';
+ l.mastery.add20={attempts:10,correct:10,helped:0};
+ l.mastery.sub20={attempts:10,correct:2,helped:0};
+ l.mastery.place100={attempts:10,correct:10,helped:10};
+ const counts={add20:0,sub20:0,place100:0};
+ for(let i=0;i<3000;i++)counts[api.selectedTopic()]++;
+ assert.ok(counts.sub20>counts.add20*1.5);assert.ok(counts.place100>counts.add20*1.5);
+});
+
+test('Challenge inverse arithmetic and practical contexts retain valid answers',()=>{
+ const {api}=harness();api.begin();
+ for(const topic of ['add20','add100','sub20','sub100','groups','tables12'])for(let i=0;i<150;i++){
+  const question=api.makeChallengeQuestion(topic),numbers=question.text.match(/\d+/g).map(Number);
+  if(question.text.includes('□')){
+   const [a,total]=numbers;
+   assert.equal(question.answer,question.text.includes('×')?total/a:question.text.includes('−')?a-total:total-a);
+  }else assert.equal(question.answer,question.text.includes('bags')?numbers[0]*numbers[1]:question.text.includes('removed')?numbers[0]-numbers[1]:numbers[0]+numbers[1]);
+ }
+});
+
+test('Challenge supplies twelve unique valid tasks for every selected topic',()=>{
+ const {api}=harness();
+ for(const topic of Object.keys(api.topics)){
+  api.begin(6);let count=0;
+  for(let attempts=0;attempts<400&&count<12;attempts++){
+   const question=api.makeChallengeQuestion(topic);if(!question||api.session().usedQuestions.has(question.key))continue;
+   api.session().usedQuestions.add(question.key);count++;
+   assert.equal(question.topic,topic);assert.ok(api.options(question).some(x=>String(x)===String(question.answer)));
+  }
+  assert.equal(count,12,topic);
+ }
+});
 
 test('parent learner rows separate name and class and put current status below identity',()=>{
   const {api,get}=harness();api.begin(6);api.renderParent();

@@ -25,7 +25,8 @@ Browser checks: complete eight-question first-class fractions round and reward; 
 - [x] Implement a guided Learn sequence: question-specific strategy/model, supported attempt, independent attempt. Stay on one topic per round; restore support after struggles and record scaffolded answers as helped. Dedicated worked-example demonstrations remain a future extension.
 
 Verified this batch: responsive browser checks at phone/narrow-phone and desktop sizes; complete eight-question Learn round, stage fading/restoration, independent counts/reward, long fraction wording/reference model, mobile scratchpad and Beat Quest. These are simulated responsive checks, not physical-device or child playtesting.
-- [ ] Make Practise and Challenge genuinely different rather than differently labelled copies.
+- [x] Differentiate the initial Practise/Challenge paths: Practise weights first-try errors and help use; Challenge adds inverse/missing-part tasks, practical contexts, missing pattern terms, data comparisons and uncoloured fractions. Both respect the plan; Challenge has no timer and keeps tips available.
+- [ ] Extend bespoke reasoning variants to remaining topics (including shapes, time, statistics, algebra and probability); obtain teacher review of the expanded challenge bank.
 - [ ] Add accessible read-aloud and test maths pronunciation.
 - [ ] Add ten-frames, part–whole, number-line and base-ten representations with staged support.
 - [ ] Teacher-review the expanded early fraction/shape tasks and class readiness.
