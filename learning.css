@@ -1,3 +1,5 @@
+.mode-icon{display:block;font-style:normal;line-height:1.2;margin-bottom:7px}
+#modeGrid .mode{display:flex;flex-direction:column;justify-content:flex-start}
 .learner-identity{min-width:0}
 .learner-name-line{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:8px;row-gap:3px}
 .current-learner{display:block;margin-top:5px}
