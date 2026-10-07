@@ -1,8 +1,8 @@
-const CACHE = "maths-quest-everyone-v32";
+const CACHE = "maths-quest-everyone-v33";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./app.js",
+  "./app.js?v=33",
   "./adventure.js",
   "./adventure.css",
   "./island.js",
@@ -31,7 +31,7 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL.map(path => new Request(new URL(path, self.location.href), { cache: "reload" })))));
 });
 
 self.addEventListener("activate", event => {

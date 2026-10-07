@@ -27,6 +27,8 @@ There is no advertising or multiplayer ranking. Cookie-free analytics count
 anonymous activity events; learner information is not sent to analytics.
 
 Run the checks with `node --test tests/*.test.cjs`.
+
+The learning-quality work is tracked in [the roadmap](docs/learning-quality-roadmap.md). Generator, round, timing and feedback regressions can also run with `deno test --allow-read tests/learning.test.cjs tests/adventure.test.cjs tests/island.test.mjs tests/service-worker.test.cjs`.
 # Cloud Crossing
 
 The learner home groups activities into Play games (Quest World, Cloud Crossing, Beat Quest) and Practise maths (Learn, Practise, Challenge). Quest World opens its destination choices, collection and mini-games in a separate panel.
