@@ -21,8 +21,10 @@ Browser checks: complete eight-question first-class fractions round and reward; 
 
 ## Batch 2 — guided learning and mobile usability
 
-- [ ] Compact gameplay headers/journey; give maths models and answers priority on phones.
-- [ ] Implement a real guided Learn sequence: model, supported attempt, independent example.
+- [x] Compact gameplay headers/journey; give maths models and answers priority on phones.
+- [x] Implement a guided Learn sequence: question-specific strategy/model, supported attempt, independent attempt. Stay on one topic per round; restore support after struggles and record scaffolded answers as helped. Dedicated worked-example demonstrations remain a future extension.
+
+Verified this batch: responsive browser checks at phone/narrow-phone and desktop sizes; complete eight-question Learn round, stage fading/restoration, independent counts/reward, long fraction wording/reference model, mobile scratchpad and Beat Quest. These are simulated responsive checks, not physical-device or child playtesting.
 - [ ] Make Practise and Challenge genuinely different rather than differently labelled copies.
 - [ ] Add accessible read-aloud and test maths pronunciation.
 - [ ] Add ten-frames, part–whole, number-line and base-ten representations with staged support.
