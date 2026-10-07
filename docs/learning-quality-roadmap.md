@@ -30,7 +30,8 @@ Verified this batch: responsive browser checks at phone/narrow-phone and desktop
 - [x] Add optional read-aloud for questions and revealed tips, enabled per learner in parent controls (off by default). Browser-provided English voices, replay/stop, maths-symbol text conversion, visual reference descriptions and paused Speed time. Automated speech lifecycle/opt-in tests and mobile playback-control checks passed.
 - [ ] Listen to pronunciation on physical iPhone/iPad devices and review with children; voice availability and offline behaviour depend on the browser/device.
 - [x] Add early addition/subtraction ten-frames, part–whole and open-number-line models with staged support, matching question and tip numbers. Ten-frames preserve both parts by colour; subtraction supports count-back and count-up difference strategies. Learn fades models after successful attempts.
-- [ ] Add base-ten place-value models and extend equal-group/sharing representations; teacher-review models and conduct physical-device/child playtesting.
+- [x] Extend multiplication arrays to labelled equal-group models, and distinguish division by sharing from division by grouping, using the same dot language in questions and help.
+- [ ] Add base-ten place-value models; teacher-review models and conduct physical-device/child playtesting.
 - [ ] Teacher-review the expanded early fraction/shape tasks and class readiness.
 - [ ] Simplify onboarding’s redundant final review/CTA transitions.
 

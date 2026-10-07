@@ -1,14 +1,33 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {missionFor,fitsBridge} from '../island.js';
+import {missionFor,fitsBridge,minimumBoards} from '../island.js';
 
 test('every class and crossing has a solution using the offered pieces',()=>{
   for(let level=1;level<=6;level++)for(let round=0;round<3;round++){
     const m=missionFor(level,round);
-    const piece=m.pieces.find(n=>m.target%n===0);
-    assert.ok(piece);
-    assert.ok(fitsBridge(m,Array(m.target/piece).fill(piece)));
+    function solve(sum=0,pieces=[]){if(sum===m.target)return fitsBridge(m,pieces);if(sum>m.target)return false;return m.pieces.some(n=>solve(sum+n,[...pieces,n]))}
+    assert.ok(solve());
   }
+});
+test('varied missions have solvable build, repair and efficient goals for every class',()=>{
+ for(let level=1;level<=6;level++)for(let seed=1;seed<=30;seed++)for(let round=0;round<3;round++){
+  const m=missionFor(level,round,seed),best=minimumBoards(m);
+  assert.ok(Number.isFinite(best));assert.equal(m.kind,['build','repair','efficient'][round]);
+  if(m.starter)assert.ok(m.pieces.includes(m.starter)&&m.target>=m.starter);
+  if(m.equal)assert.ok(m.pieces.some(n=>m.target%n===0&&m.target/n===best));
+ }
+});
+test('early crossings omit one-unit boards and repair gaps remain solvable',()=>{
+ for(let level=1;level<=2;level++)for(let seed=0;seed<=30;seed++)for(let round=0;round<3;round++){
+  const m=missionFor(level,round,seed);assert.equal(m.pieces.includes(1),false);
+  function reachable(left){return left===0||left>0&&m.pieces.some(n=>reachable(left-n))}
+  assert.ok(reachable(m.target-m.starter));
+ }
+});
+test('efficient bridges reject a correct length made with excess boards',()=>{
+ const m=missionFor(1,2,1);
+ assert.equal(fitsBridge(m,Array(m.target).fill(1)),false);
+ assert.ok(minimumBoards(m)<m.target);
 });
 test('equal groups reject mixed lengths even when the total fits',()=>{
   const m=missionFor(3,0);

@@ -8,6 +8,16 @@ test('subtraction models preserve the exact quantity in both strategies',()=>{
   assert.equal(up.slice(1).reduce((sum,n,i)=>sum+n-up[i],0),a-b);
  }
 });
+test('arrays and division groups preserve all counters and distinguish interpretations',()=>{
+ for(let a=1;a<=12;a++)for(let b=1;b<=12;b++){
+  for(const more of [false,true])assert.equal((render({kind:'group-strategy',a,b,op:'×'},more).match(/<circle/g)||[]).length,a*b);
+  for(const method of ['sharing','grouping']){
+   const html=render({kind:'group-strategy',a:a*b,b:a,op:'÷',method});
+   assert.equal((html.match(/<circle/g)||[]).length,a*b);
+   assert.equal((html.match(/<rect/g)||[]).length,method==='sharing'?a:b);
+  }
+ }
+});
 test('ten-frames preserve each part and do not label the answer',()=>{
  for(let a=2;a<20;a++)for(let b=1;b<=20-a;b++){
   const html=render({a,b,op:'+'});

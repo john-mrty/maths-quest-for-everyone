@@ -16,6 +16,20 @@ function steps(a,b,method){
 }
 function render(v,more=false){
  const {a,b,op}=v;
+ if(v.kind==="group-strategy"){
+  const total=op==="×"?a*b:a,method=v.method||"sharing";
+  const groups=op==="×"?a:method==="grouping"?a/b:b,each=op==="×"?b:method==="grouping"?b:a/b;
+  if(!Number.isInteger(groups)||!Number.isInteger(each)||groups<1||each<1||total>144)return "";
+  const array=op==="×"&&!more,rows=array?Math.min(a,b):groups,cols=array?Math.max(a,b):each;
+  let drawing="",height;
+  if(array){height=rows*19+22;drawing=Array.from({length:rows},(_,r)=>Array.from({length:cols},(_,c)=>`<circle cx="${34+c*24}" cy="${18+r*19}" r="7" fill="#7655e8"/>`).join("")).join("")}
+  else{const across=groups>2?3:groups,cardWidth=360/across,insideCols=Math.min(each,4),insideRows=Math.ceil(each/insideCols),cardHeight=insideRows*18+23;height=Math.ceil(groups/across)*cardHeight+8;
+   drawing=Array.from({length:groups},(_,g)=>{const left=(g%across)*cardWidth,top=Math.floor(g/across)*cardHeight;return `<rect x="${left+4}" y="${top+3}" width="${cardWidth-8}" height="${cardHeight-6}" rx="12" fill="#fff" stroke="#dacced" stroke-width="2"/>${Array.from({length:each},(_,i)=>`<circle cx="${left+cardWidth/2+(i%insideCols-(insideCols-1)/2)*19}" cy="${top+17+Math.floor(i/insideCols)*18}" r="6" fill="#7655e8"/>`).join("")}`}).join("");
+  }
+  const title=op==="×"?(array?"An array of equal groups":"See the equal groups"):method==="grouping"?"Make groups of a given size":"Share equally between groups";
+  const caption=op==="×"?`${a} groups of ${b}. Count in ${b}s to find the total.`:method==="grouping"?`Put ${b} counters in each group. Count how many groups use all ${a} counters.`:`Share ${a} counters between ${b} groups. Count the counters in one group.`;
+  return `<div class="math-model"><strong>${title}</strong><svg viewBox="0 0 360 ${height}" role="img" aria-label="${caption}">${drawing}</svg><p>${caption}</p></div>`;
+ }
  if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0||a>100||b>100||op==="−"&&b>a)return "";
  const wrap=(title,svg,caption)=>`<div class="math-model"><strong>${title}</strong>${svg}<p>${caption}</p></div>`;
  if(op==="+"){
