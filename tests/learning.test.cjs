@@ -13,12 +13,43 @@ function harness(){
   const context={console,Date,Math:Object.create(Math),crypto:{randomUUID},navigator:{},matchMedia:()=>({matches:true}),localStorage:{getItem:()=>null,setItem(){}},Event:class {},scrollTo(){},requestAnimationFrame(){},setTimeout:fn=>{timeouts.push(fn);return timeouts.length},clearTimeout(){},setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval(){},window:{addEventListener(){},dispatchEvent(){},questAdventure:{journey(){},award:()=>null,results(){}}},document:{hidden:false,querySelector:get,querySelectorAll:s=>s==='.answer'?buttons:[],createElement:element,createElementNS:element}};
   vm.createContext(context);
   let seed=41;context.Math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-const expose=`window.test={makeQuestion,makeChallengeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
+const expose=`window.test={spokenMath,readingText,readAloud,stopReading,makeQuestion,makeChallengeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
     begin(level=1){data=fresh();data.learners=[{id:"test",name:"Test",classLevel:level,plan:planFor(level),mastery:{},completedResults:[],sessions:0,totalCorrect:0,totalAttempts:0,helped:0,beat:{attempts:0,correct:0,tokens:0,best:0}}];activeId="test";selectedTables=new Set([2]);session={index:0,total:12,usedQuestions:new Set(),scratchpad:[],locked:false,correct:0,independent:0,score:0};},
     session:()=>session,learner,topics:TOPICS,mode:value=>playMode=value,topic:value=>questTopic=value,hint:value=>hintLevel=value};`;
   vm.runInContext(source.replace('setup();\n})();',expose+'\n})();'),context);
   return {api:context.window.test,elements,get,buttons,timeouts,intervals,context};
 }
+
+test('read-aloud is off by default and requires the learner opt-in',()=>{
+ const h=harness(),spoken=[];h.api.begin();
+ h.context.window.SpeechSynthesisUtterance=class{constructor(text){this.text=text}};
+ h.context.window.speechSynthesis={cancel(){},speak(u){spoken.push(u)},getVoices(){return []}};
+ h.api.readAloud('Question');assert.equal(spoken.length,0);
+ h.api.learner().readAloud=true;h.api.readAloud('Question');assert.equal(spoken.length,1);
+ h.api.learner().readAloud=false;h.api.stopReading();h.api.readAloud('Tip');assert.equal(spoken.length,1);
+});
+
+test('read-aloud expands maths symbols, units, fractions and visual references',()=>{
+ const {api}=harness();
+ assert.equal(api.spokenMath('5 × 7 = ?'),'5 times 7 equals what?');
+ assert.equal(api.spokenMath('1/2 of 18 = ?'),'1 over 2 of 18 equals what?');
+ assert.equal(api.spokenMath('25% of €80'),'25 percent of 80 euro');
+ assert.equal(api.spokenMath('12 cm² and 3 cm³'),'12 square centimetres and 3 cubic centimetres');
+ assert.equal(api.spokenMath('30 minutes after 1:00'),'30 minutes after 1 o\'clock');
+ assert.match(api.readingText({text:'What is the value of the underlined digit?',visual:{kind:'place',number:73,digitIndex:0}}),/number is 73.*digit is 7/);
+ assert.match(api.readingText({text:'What fraction?',visual:{kind:'fraction',parts:4,filled:1}}),/4 equal parts; 1 are coloured/);
+});
+
+test('reading pauses speed time, replays without queues and ignores stale completion',()=>{
+ const h=harness(),spoken=[];let cancels=0;h.api.begin();h.api.learner().readAloud=true;h.api.session().beatMode='flow';
+ h.context.window.SpeechSynthesisUtterance=class{constructor(text){this.text=text}};
+ h.context.window.speechSynthesis={cancel(){cancels++},speak(u){spoken.push(u)},getVoices(){return [{lang:'en-IE',localService:true}]}};
+ h.api.readAloud('First question');assert.equal(h.api.questPaused(),true);
+ h.api.readAloud('Replay');assert.equal(spoken.length,2);assert.equal(cancels,2);
+ spoken[0].onend();assert.equal(h.api.questPaused(),true);
+ spoken[1].onend();assert.equal(h.api.questPaused(),false);
+ h.api.readAloud('Tip');h.api.stopReading();assert.equal(h.api.questPaused(),false);
+});
 
 test('Practise gives more attention to topics with errors or frequent help',()=>{
  const {api}=harness();api.begin();api.mode('practice');

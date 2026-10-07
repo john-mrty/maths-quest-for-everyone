@@ -27,7 +27,8 @@ Browser checks: complete eight-question first-class fractions round and reward; 
 Verified this batch: responsive browser checks at phone/narrow-phone and desktop sizes; complete eight-question Learn round, stage fading/restoration, independent counts/reward, long fraction wording/reference model, mobile scratchpad and Beat Quest. These are simulated responsive checks, not physical-device or child playtesting.
 - [x] Differentiate the initial Practise/Challenge paths: Practise weights first-try errors and help use; Challenge adds inverse/missing-part tasks, practical contexts, missing pattern terms, data comparisons and uncoloured fractions. Both respect the plan; Challenge has no timer and keeps tips available.
 - [ ] Extend bespoke reasoning variants to remaining topics (including shapes, time, statistics, algebra and probability); obtain teacher review of the expanded challenge bank.
-- [ ] Add accessible read-aloud and test maths pronunciation.
+- [x] Add optional read-aloud for questions and revealed tips, enabled per learner in parent controls (off by default). Browser-provided English voices, replay/stop, maths-symbol text conversion, visual reference descriptions and paused Speed time. Automated speech lifecycle/opt-in tests and mobile playback-control checks passed.
+- [ ] Listen to pronunciation on physical iPhone/iPad devices and review with children; voice availability and offline behaviour depend on the browser/device.
 - [ ] Add ten-frames, part–whole, number-line and base-ten representations with staged support.
 - [ ] Teacher-review the expanded early fraction/shape tasks and class readiness.
 - [ ] Simplify onboarding’s redundant final review/CTA transitions.
