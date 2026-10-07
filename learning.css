@@ -1,3 +1,7 @@
+.learner-identity{min-width:0}
+.learner-name-line{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:8px;row-gap:3px}
+.current-learner{display:block;margin-top:5px}
+.learner-manage>div:not(.learner-actions):not(.learner-identity)>strong{margin-right:8px}
 .learning-support{max-width:700px;margin:20px auto 26px;padding:16px 20px;border:2px solid #fff;border-radius:20px;background:#f2edf9;text-align:center}
 .learning-support[hidden]{display:none}
 .learning-support>strong{color:var(--dark);font-size:16px}

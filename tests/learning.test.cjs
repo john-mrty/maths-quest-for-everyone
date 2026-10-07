@@ -13,12 +13,19 @@ function harness(){
   const context={console,Date,Math:Object.create(Math),crypto:{randomUUID},navigator:{},matchMedia:()=>({matches:true}),localStorage:{getItem:()=>null,setItem(){}},Event:class {},scrollTo(){},requestAnimationFrame(){},setTimeout:fn=>{timeouts.push(fn);return timeouts.length},clearTimeout(){},setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval(){},window:{addEventListener(){},dispatchEvent(){},questAdventure:{journey(){},award:()=>null,results(){}}},document:{hidden:false,querySelector:get,querySelectorAll:s=>s==='.answer'?buttons:[],createElement:element,createElementNS:element}};
   vm.createContext(context);
   let seed=41;context.Math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-  const expose=`window.test={makeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,
+const expose=`window.test={makeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
     begin(level=1){data=fresh();data.learners=[{id:"test",name:"Test",classLevel:level,plan:planFor(level),mastery:{},completedResults:[],sessions:0,totalCorrect:0,totalAttempts:0,helped:0,beat:{attempts:0,correct:0,tokens:0,best:0}}];activeId="test";selectedTables=new Set([2]);session={index:0,total:12,usedQuestions:new Set(),scratchpad:[],locked:false,correct:0,independent:0,score:0};},
     session:()=>session,learner,topics:TOPICS,mode:value=>playMode=value,topic:value=>questTopic=value,hint:value=>hintLevel=value};`;
   vm.runInContext(source.replace('setup();\n})();',expose+'\n})();'),context);
   return {api:context.window.test,elements,get,buttons,timeouts,intervals,context};
 }
+
+test('parent learner rows separate name and class and put current status below identity',()=>{
+  const {api,get}=harness();api.begin(6);api.renderParent();
+  const html=get('#parentLearners').children[0].innerHTML;
+  assert.match(html,/class="learner-name-line"><strong>Test<\/strong><span>6th Class<\/span><\/div><span class="small current-learner">Current learner<\/span>/);
+  assert.doesNotMatch(html.split('class="learner-actions"')[1],/Current learner/);
+});
 
 test('Learn fades support and restores it after a struggle',()=>{
   const {api,get,buttons}=harness();api.begin();api.mode('learn');
