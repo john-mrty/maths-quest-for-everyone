@@ -29,7 +29,8 @@ Verified this batch: responsive browser checks at phone/narrow-phone and desktop
 - [ ] Extend bespoke reasoning variants to remaining topics (including shapes, time, statistics, algebra and probability); obtain teacher review of the expanded challenge bank.
 - [x] Add optional read-aloud for questions and revealed tips, enabled per learner in parent controls (off by default). Browser-provided English voices, replay/stop, maths-symbol text conversion, visual reference descriptions and paused Speed time. Automated speech lifecycle/opt-in tests and mobile playback-control checks passed.
 - [ ] Listen to pronunciation on physical iPhone/iPad devices and review with children; voice availability and offline behaviour depend on the browser/device.
-- [ ] Add ten-frames, part–whole, number-line and base-ten representations with staged support.
+- [x] Add early addition/subtraction ten-frames, part–whole and open-number-line models with staged support, matching question and tip numbers. Ten-frames preserve both parts by colour; subtraction supports count-back and count-up difference strategies. Learn fades models after successful attempts.
+- [ ] Add base-ten place-value models and extend equal-group/sharing representations; teacher-review models and conduct physical-device/child playtesting.
 - [ ] Teacher-review the expanded early fraction/shape tasks and class readiness.
 - [ ] Simplify onboarding’s redundant final review/CTA transitions.
 

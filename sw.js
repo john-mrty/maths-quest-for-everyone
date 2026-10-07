@@ -1,10 +1,11 @@
-const CACHE = "maths-quest-everyone-v39";
+const CACHE = "maths-quest-everyone-v40";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./app.js?v=39",
-  "./learning.css?v=39",
-  "./adventure.js?v=39",
+  "./app.js?v=40",
+  "./math-models.js?v=40",
+  "./learning.css?v=40",
+  "./adventure.js?v=40",
   "./adventure.css",
   "./island.js",
   "./island.css",
