@@ -1,6 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {missionFor,fitsBridge,minimumBoards} from '../island.js';
+import {missionFor,fitsBridge,minimumBoards,flowerMission,fitsBouquet} from '../island.js';
+
+test('flower chapters have achievable age-appropriate colour goals',()=>{
+ for(let level=1;level<=6;level++)for(let seed=0;seed<30;seed++){
+  const m=flowerMission(level,seed),correct=[...Array(m.yellow).fill('yellow'),...Array(m.pink).fill('pink')];
+  assert.ok(m.yellow<=9&&m.pink<=9);assert.equal(m.yellow+m.pink,m.total);
+  assert.equal(fitsBouquet(m,correct),true);assert.equal(fitsBouquet(m,correct.slice(1)),false);
+  assert.equal(fitsBouquet(m,Array(m.total).fill('yellow')),false);
+ }
+});
 
 test('every class and crossing has a solution using the offered pieces',()=>{
   for(let level=1;level<=6;level++)for(let round=0;round<3;round++){

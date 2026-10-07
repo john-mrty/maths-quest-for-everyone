@@ -37,6 +37,9 @@ Verified this batch: responsive browser checks at phone/narrow-phone and desktop
 
 ## Batch 3 — replayable mathematical play
 
+- [x] Replace repeated bridge rounds with one bridge followed by a flower-picking chapter: camera follows onto the island, reversible 3D picking and basket previews, keyboard/button alternatives, counting/halves/thirds by class, and completion rewards recorded as two tasks. Browser-tested scene picking, undo, correction and full completion; responsive dimensions checked. Physical-device and child retesting remain outstanding.
+- [x] Remove the redundant independent “Try it yourself” panel and add a full counter preview tray with reversible group-labelled counters to Share the Treasure.
+
 - [ ] Varied Cloud Crossing missions, stable/explicit units, bridge markings and transfer questions.
 - [ ] Number Trail jump traces and alternative strategies.
 - [ ] Share the Treasure animated pool, sharing/grouping tasks and batch moves.

@@ -9,3 +9,4 @@
 .game-tile{display:flex;flex-direction:column}.game-preview{flex:none}.world-preview{position:relative}.world-preview .quest-landscape{position:absolute;inset:0}.game-tile-copy{width:100%}
 .world-preview{overflow:hidden}.world-preview .quest-landscape{overflow:hidden}
 @media(max-width:480px){.game-tile{display:grid}.world-preview .quest-landscape{height:100%}}
+.counter-tray{justify-content:center;margin-bottom:10px;gap:12px}.counter-pool small{display:block;font-family:system-ui,sans-serif;font-weight:500;font-size:12px}.counter-tray .share-counter{width:44px;height:44px;flex:0 0 44px;color:#fff;padding:0;display:grid;place-items:center;font-family:system-ui,sans-serif;font-size:15px}.counter-unshared{background:#f0b75c;border-color:#ffd894;box-shadow:inset 0 3px 4px #ffffff60,0 3px 0 #b67d30}.counter-shared:focus-visible{outline:3px solid #392280;outline-offset:3px}

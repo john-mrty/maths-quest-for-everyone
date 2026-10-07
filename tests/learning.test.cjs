@@ -100,6 +100,7 @@ test('Learn fades support and restores it after a struggle',()=>{
   for(let stage=0;stage<3;stage++){
     const s=api.session();s.locked=false;s.q=api.makeQuestion('place100');api.renderLearningSupport();
     assert.equal(api.learningStage(),stage);assert.equal(s.q.helped,stage<2);
+    assert.equal(get('#learningSupport').hidden,stage===2);
     api.answer(s.q.answer,buttons[0]);
   }
   assert.equal(api.session().independent,1);
