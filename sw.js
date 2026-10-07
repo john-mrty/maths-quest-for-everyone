@@ -1,4 +1,4 @@
-const CACHE = "maths-quest-everyone-v30";
+const CACHE = "maths-quest-everyone-v31";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,8 @@ const APP_SHELL = [
   "./adventure.css",
   "./island.js",
   "./island.css",
+  "./assets/cloud-crossing-preview.jpg",
+  "./assets/beat-quest-preview.svg",
   "./vendor/three.module.min.js",
   "./vendor/three.core.min.js",
   "./cloud-config.js",

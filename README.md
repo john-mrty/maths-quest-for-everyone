@@ -29,6 +29,10 @@ anonymous activity events; learner information is not sent to analytics.
 Run the checks with `node --test tests/*.test.cjs`.
 # Cloud Crossing
 
+The learner home groups activities into Play games (Quest World, Cloud Crossing, Beat Quest) and Practise maths (Learn, Practise, Challenge). Quest World opens its destination choices, collection and mini-games in a separate panel.
+
+Cloud Crossing opens with a closer bridge view. Drag with a mouse or one finger to rotate and tilt, pinch with two fingers or scroll to zoom, or use the on-screen rotate/zoom/reset buttons. Movement is bounded, and dragging or pinching never removes a bridge piece.
+
 Quest World includes a touch-friendly Three.js bridge-building prototype. Three crossings use addition (1st–2nd), equal groups (3rd–4th), or quarter-unit fractions (5th–6th). Completing all three earns a world decoration and saves a completed result. Closing early does not award progress.
 
 The scene is generated locally from geometric clay-style models and a procedural surface texture. Three.js 0.180.0 is bundled under `vendor/` with its MIT licence; no third-party asset requests are needed. The service worker caches the scene for offline use. Motion is reduced when requested by the device, audio follows the app setting, and resources are released when the scene closes. Devices without WebGL receive a message and can continue using the other games.
