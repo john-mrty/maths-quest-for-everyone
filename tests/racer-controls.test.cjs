@@ -3,6 +3,21 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync(new URL('../racer.js',`file://${__filename}`),'utf8');
+test('three lives preserve score and journey after two misses, show corrections, and end on the third',()=>{
+ const start=source.indexOf(' function resolve()'),end=source.indexOf(' function finish()',start);
+ const nodes=new Map(),node=()=>({textContent:'',hidden:false,className:'',querySelectorAll:()=>[]});
+ const h={phase:'drive',answers:[4,11,15],lane:0,q:{text:'4 + 7',answer:11},correct:2,best:5,index:2,lives:3,feedbackTime:0,boost:2,bump:0,sprintUntil:100,travel:400,fast:false,learner:{classLevel:1},audio:{sound(){}},gateRoot:{},releaseAcceleration(){},updateLives(){},updatePace(){},racePace:()=>({multiplier:1.2}),$:s=>{if(!nodes.has(s))nodes.set(s,node());return nodes.get(s);},finish(){h.phase='finish';h.finishes++;},nextQuestion(){h.phase='drive';h.feedbackTime=0;h.next++;},finishes:0,next:0};
+ vm.createContext(h);vm.runInContext(source.slice(start,end),h);
+ for(let miss=1;miss<=3;miss++){
+  h.resolve();assert.equal(h.lives,3-miss);assert.equal(h.correct,2);assert.equal(h.travel,400);assert.equal(h.boost,0);assert.match(nodes.get('#raceQuestion').textContent,/4 \+ 7 = 11/);
+  h.resolve();assert.equal(h.lives,3-miss,'feedback cannot spend another life');
+  h.advanceFeedback(2.9);assert.equal(h.phase,'feedback');h.advanceFeedback(.2);
+  assert.equal(h.phase,miss===3?'finish':'drive');assert.equal(h.index,Math.min(2+miss,4));
+ }
+ assert.equal(h.next,2);assert.equal(h.finishes,1);
+ h.phase='drive';h.lives=2;h.lane=1;h.feedbackTime=0;h.resolve();assert.equal(h.lives,2);assert.equal(h.correct,3);h.advanceFeedback(.7);assert.equal(h.phase,'drive');
+ const reset=source.slice(source.indexOf('function startRace(){')+'function startRace(){'.length,source.indexOf('tiltZero=null;fast='));vm.runInContext(reset,h);assert.equal(h.lives,3);
+});
 test('control hints distinguish touch and keyboard devices and update on layout changes',()=>{
  const start=source.indexOf(' function defaultSteeringCopy()'),end=source.indexOf(' touchControls.addEventListener',start);
  const copy={},h={phase:'drive',touchControls:{matches:true},tiltLabel:{},tiltStatus:{},tiltEnabled:false,$:()=>copy};vm.createContext(h);vm.runInContext(source.slice(start,end),h);h.syncControlHints();

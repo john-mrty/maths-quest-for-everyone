@@ -10,4 +10,5 @@
 .race-options #raceMode{font-family:inherit;font-size:16px;font-weight:800;line-height:1.3}
 .race-options>label{font-family:inherit;font-weight:800}
 .race-audio>label[hidden]{display:none}
+#raceLives{display:flex;justify-content:center;gap:8px;font:800 22px/1.2 system-ui;color:#c73c65;margin-bottom:5px}#raceLives .lost-life{color:#a99eaf}.race-message.bump{max-width:90%;white-space:normal;text-align:center;font-size:clamp(18px,3vw,24px)}
 .tilt-steering .race-edge-control>span{display:none}#raceTiltStatus{flex-basis:100%;text-align:center;font-size:12px}.race-audio{gap:8px 18px}@media(max-width:700px),(pointer:coarse){.race-edge-control>span{display:none}.race-edge-control:focus-visible>span{display:grid}}

@@ -63,7 +63,10 @@ export function openRacer(learner,hooks){
  dialog.innerHTML=`<div class="racer-shell"><header class="racer-header"><div><span class="racer-kicker">CLOUDTOP CIRCUIT</span><h2 id="racerTitle">Turbo Trail</h2></div><button class="close" aria-label="Close Turbo Trail">×</button></header><div class="racer-stage"><div class="racer-hud"><span id="raceProgress">8 questions · pause any time</span><strong id="raceQuestion">Ready to roll?</strong><span id="raceCue">Drive through the right number. Hold ↑ to accelerate.</span></div><div class="race-gates" aria-label="Answer numbers"></div><div class="race-message" id="raceMessage" role="status" aria-live="polite"></div><div class="race-speed" aria-hidden="true">✦ <span id="raceSpeed">CRUISE</span></div></div><section class="race-dashboard"><div class="race-steering"><button class="secondary" id="raceLeft" aria-label="Steer left">←</button><span id="raceLane" role="status">Middle lane</span><button class="secondary" id="raceRight" aria-label="Steer right">→</button></div><div class="race-options"><label>Driving style<select id="raceMode"><option value="cruise">Cruise · generous thinking time</option><option value="race">Race · faster gates</option></select></label><button class="secondary" id="racePause" disabled>Pause</button><button class="secondary" id="raceHelp" disabled>Pit stop · help</button><button class="primary" id="raceStart">Start driving</button></div><div class="race-audio"><label><input type="checkbox" id="raceMusic"> Music</label><label><input type="checkbox" id="raceEffects"> Sound effects</label><span>← → steer · hold ↑ / W to accelerate · 1 2 3 choose a lane</span></div></section><section class="race-pit" hidden><h3 id="racePitTitle">Safe pit stop</h3><p id="racePitCopy"></p><div id="raceModel"></div><button class="primary" id="raceResume">Back to the track</button></section></div>`;
  document.body.appendChild(dialog);dialog.showModal();const $=s=>dialog.querySelector(s),stage=$('.racer-stage'),audio=chipAudio();
  let disposed=false,renderer,frame,observer,phase='ready',beforePause='drive',lane=1,carX=0,index=0,correct=0,helped=0,clock=0,travel=0,boost=0,bump=0,last=0,fast=false,accelerating=false,sprintUntil=0,approach=0,answers=[],q,questions=raceQuestions(learner.classLevel,Math.random,Infinity),feedbackTime=0,completionSaved=false,best=Number(learner.turboBest)||0;
- $('#raceProgress').textContent=`Personal best: ${best} · one miss ends the run`;
+ let lives=3;
+ const hearts=document.createElement('div');hearts.id='raceLives';hearts.setAttribute('role','status');hearts.setAttribute('aria-live','polite');$('.racer-hud').prepend(hearts);
+ function updateLives(){hearts.setAttribute('aria-label',`${lives} ${lives===1?'life':'lives'} remaining`);hearts.innerHTML=Array.from({length:3},(_,i)=>`<span aria-hidden="true" class="${i<lives?'':'lost-life'}">${i<lives?'♥':'♡'}</span>`).join('');}
+ updateLives();$('#raceProgress').textContent=`Personal best: ${best} · 3 lives per race`;
  $('#raceCue').textContent='Drive through the right number. Hold ↑ or swipe up to accelerate.';
  $('.racer-hud').appendChild($('#raceStart'));
  $('#raceHelp').remove();
@@ -192,11 +195,16 @@ export function openRacer(learner,hooks){
   answers.forEach((n,i)=>{const b=document.createElement('button');b.className='race-gate-label';b.textContent=String(n);b.setAttribute('aria-label',`Steer towards ${['left','middle','right'][i]} answer: ${n}`);b.onclick=()=>{if(!tiltEnabled)steer(i)};$('.race-gates').appendChild(b)});positionAnswers(0);steer(lane);
  }
  function resolve(){
-  const hit=answers[lane]===q.answer;phase='feedback';feedbackTime=0;releaseAcceleration();$('.race-gates').hidden=true;gateRoot.visible=false;
+  if(phase!=='drive')return;
+  const hit=answers[lane]===q.answer;q.passed=hit;phase='feedback';feedbackTime=0;releaseAcceleration();sprintUntil=0;$('.race-gates').hidden=true;gateRoot.visible=false;
   $('#raceQuestion').textContent=`${q.text} = ${q.answer}`;$('#raceCue').textContent=hit?'Perfect line! Enjoy the boost.':'A little bump. Here’s the correct answer.';
   $('#raceMessage').textContent=hit?'BOOST!':`${q.text} = ${q.answer}`;$('#raceMessage').className='race-message '+(hit?'boost':'bump');
   $('.race-gates').querySelectorAll('button').forEach((b,i)=>{b.classList.toggle('correct-gate',answers[i]===q.answer);b.disabled=true;});
-  if(hit){correct++;boost=2.2;audio.sound('boost');$('#raceProgress').textContent=`Completed: ${correct} · Best: ${Math.max(best,correct)}`;updatePace(true);$('#raceCue').textContent='Pace up! '+racePace(correct,fast,learner.classLevel).multiplier.toFixed(2)+'× — next answers arrive sooner.';}else{bump=1.2;audio.sound('bump');}
+  if(hit){correct++;boost=2.2;audio.sound('boost');$('#raceProgress').textContent=`Completed: ${correct} · Best: ${Math.max(best,correct)}`;updatePace(true);$('#raceCue').textContent='Pace up! '+racePace(correct,fast,learner.classLevel).multiplier.toFixed(2)+'× — next answers arrive sooner.';}else{lives--;updateLives();boost=0;bump=3;audio.sound('bump');$('#raceCue').textContent=lives>0?`Not quite — ${q.text} = ${q.answer}. ${lives} ${lives===1?'life':'lives'} left. Keep going!`:`${q.text} = ${q.answer}. No lives left — try a new race!`;}
+ }
+ function advanceFeedback(dt){
+  feedbackTime+=dt;
+  if(feedbackTime>(q.passed ? .65 : 3)){if(lives===0)finish();else{index++;nextQuestion();}}
  }
  function finish(){
   phase='finish';audio.pause();audio.sound('finish');gateRoot.visible=false;$('.race-gates').hidden=true;
@@ -207,7 +215,7 @@ export function openRacer(learner,hooks){
   $('#raceCue').textContent=`${q.text} = ${q.answer}. Take another run when you’re ready.`;
   $('#raceMessage').textContent='';$('#racePause').disabled=true;endControls.hidden=false;$('#raceSpeed').textContent='FINISH';
  }
- function startRace(){tiltZero=null;fast=$('#raceMode').value==='race';index=correct=helped=clock=travel=boost=bump=approach=0;lane=1;carX=0;accelerating=false;sprintUntil=0;completionSaved=false;questions=raceQuestions(learner.classLevel,Math.random,Infinity);endControls.hidden=true;$('.race-pit').hidden=true;$('#raceMode').disabled=true;$('#raceMode').parentElement.hidden=true;$('#raceStart').hidden=true;$('#racePause').disabled=false;audio.start(fast);nextQuestion();last=performance.now();}
+ function startRace(){lives=3;updateLives();tiltZero=null;fast=$('#raceMode').value==='race';index=correct=helped=clock=travel=boost=bump=approach=0;lane=1;carX=0;accelerating=false;sprintUntil=0;completionSaved=false;questions=raceQuestions(learner.classLevel,Math.random,Infinity);endControls.hidden=true;$('.race-pit').hidden=true;$('#raceMode').disabled=true;$('#raceMode').parentElement.hidden=true;$('#raceStart').hidden=true;$('#racePause').disabled=false;audio.start(fast);nextQuestion();last=performance.now();}
  $('#raceStart').onclick=startRace;$('#raceNew').onclick=startRace;
  function resize(){const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?60:48;camera.updateProjectionMatrix();}
  observer=new ResizeObserver(resize);observer.observe(stage);resize();steer(1);
@@ -236,7 +244,7 @@ export function openRacer(learner,hooks){
     clock+=dt;approach+=dt*speed;const distance=approachDistance(correct,fast,learner.classLevel),p=Math.min(1,approach/distance);
     gateRoot.visible=true;$('.race-gates').hidden=false;positionAnswers(p);
     if(p>=1){q.passed=answers[lane]===q.answer;resolve();}
-   }else{feedbackTime+=dt;if(feedbackTime>(q.passed ? .65 : 1.8)){if(!q.passed)finish();else{index++;nextQuestion();}}}
+   }else{advanceFeedback(dt);}
   }
   const target=(lane-1)*3.2;carX+=(target-carX)*(reduced?1:Math.min(1,dt*15));kart.position.x=carX+curve(3);kart.rotation.z=reduced?0:(target-carX)*-.13+(bump>0?Math.sin(now*.035)*.08:0);
   const wantedFov=(stage.clientWidth<600?60:48)+(!reduced&&(accelerating||now<sprintUntil||boost>0)?5:0);camera.fov+=(wantedFov-camera.fov)*Math.min(1,dt*6);camera.updateProjectionMatrix();
