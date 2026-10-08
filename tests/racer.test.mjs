@@ -16,15 +16,18 @@ test('accelerating genuinely closes distance faster, while bumps and boosts chan
  }
  assert.ok(drivingSpeed(true,false,0,0)>drivingSpeed(false,false,0,0));
 });
-test('endless race approaches get shorter with success but retain a readable floor',()=>{
- for(const fast of [false,true]){
+test('endless race approaches get shorter with success and cap at exactly four times starting pace',()=>{
+ for(const fast of [false,true])for(let level=1;level<=6;level++){
+  const start=approachDistance(0,fast,level);
   let previous=Infinity;
-  for(let score=0;score<1000;score++){const distance=approachDistance(score,fast);assert.ok(distance<=previous);assert.ok(distance>=42);previous=distance;}
+  for(let score=0;score<1000;score++){const distance=approachDistance(score,fast,level),pace=racePace(score,fast,level);assert.ok(distance<=previous);assert.ok(distance>=start/4);assert.ok(pace.multiplier<=4);assert.ok(pace.percent>=0&&pace.percent<=100);previous=distance;}
   assert.ok(approachDistance(10,fast)<approachDistance(0,fast));
   assert.ok(approachDistance(3,fast)<=approachDistance(0,fast)*.6);
   assert.ok(racePace(3,fast).multiplier>1.6);
   assert.equal(racePace(0,fast).percent,0);
   assert.equal(racePace(1000,fast).percent,100);
+  assert.equal(racePace(1000,fast,level).multiplier,4);
+  assert.equal(approachDistance(1000,fast,level),start/4);
  }
 });
 test('only first class gets slower driving and a gentler difficulty ramp',()=>{
