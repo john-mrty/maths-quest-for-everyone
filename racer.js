@@ -73,16 +73,49 @@ export function openRacer(learner,hooks){
  $('#raceMode').value=learner.turboDrivingStyle==='race'?'race':'cruise';
  $('#raceMode').onchange=()=>hooks.onDrivingStyle?.($('#raceMode').value);
  $('.race-audio>span').textContent='← → steer · hold ↑ / W to accelerate · swipe up for a burst · Spacebar to pause game';
+ const tiltLabel=document.createElement('label');tiltLabel.innerHTML='<input type="checkbox" id="raceTilt" aria-describedby="raceTiltStatus"> Tilt to steer';$('.race-audio').prepend(tiltLabel);
+ const tiltStatus=document.createElement('span');tiltStatus.id='raceTiltStatus';tiltStatus.setAttribute('role','status');tiltStatus.textContent='Tap either side to steer, or turn on tilt.';$('.race-audio').appendChild(tiltStatus);
+ let tiltEnabled=false,tiltZero=null,tiltFiltered=0,tiltAngle=null,tiltTimer=0,tiltRequest=0;
+ const touchControls=window.matchMedia('(pointer: coarse), (max-width: 700px)');
+ function defaultSteeringCopy(){return touchControls.matches?'Tap either side to steer, or turn on tilt.':'Use ← / → or A / D to steer. You can also click either side of the track.';}
+ function syncControlHints(){if(phase==='ready')$('#raceCue').textContent=touchControls.matches?'Drive through the right number. Swipe up or hold Accelerate for a burst.':'Drive through the right number. Hold ↑ or W to accelerate.';tiltLabel.hidden=!touchControls.matches;$('.race-audio>span').textContent=touchControls.matches?'Swipe up for a speed burst · hold Accelerate for more speed · tap pause to work it out':'← / → or A / D steer · hold ↑ / W to accelerate · Spacebar to pause game';if(!tiltEnabled)tiltStatus.textContent=defaultSteeringCopy();}
+ touchControls.addEventListener('change',syncControlHints);syncControlHints();
+ function stopTilt(message=defaultSteeringCopy()) {tiltRequest++;tiltEnabled=false;tiltZero=null;clearTimeout(tiltTimer);window.removeEventListener('deviceorientation',onTilt);$('#raceTilt').checked=false;dialog.classList.remove('tilt-steering');tiltStatus.textContent=message;}
+ function onTilt(e){
+  if(!tiltEnabled||disposed||document.hidden||!Number.isFinite(e.gamma)||!Number.isFinite(e.beta))return;
+  const angle=window.screen?.orientation?.angle??window.orientation??0,rad=angle*Math.PI/180;
+  const sideways=e.gamma*Math.cos(rad)+e.beta*Math.sin(rad);
+  clearTimeout(tiltTimer);
+  if(tiltZero===null||tiltAngle!==angle){tiltZero=sideways;tiltAngle=angle;tiltFiltered=0;tiltStatus.textContent='Tilt left or right to steer. Hold level for the middle lane.';return;}
+  if(!['ready','drive'].includes(phase))return;
+  tiltFiltered+=(sideways-tiltZero-tiltFiltered)*.25;
+  const next=tiltFiltered<-12?0:tiltFiltered>12?2:Math.abs(tiltFiltered)<7?1:lane;
+  if(next!==lane)steer(next);
+ }
+ $('#raceTilt').onchange=async()=>{
+  if(!$('#raceTilt').checked){stopTilt();return;}
+  if(!window.isSecureContext||!window.DeviceOrientationEvent){stopTilt('Tilt is unavailable here. Tap either side to steer.');return;}
+  const request=++tiltRequest;$('#raceTilt').disabled=true;
+  if(['drive','feedback'].includes(phase))pause(false);
+  try{
+   const permission=typeof window.DeviceOrientationEvent.requestPermission==='function'?await window.DeviceOrientationEvent.requestPermission():'granted';
+   if(disposed||request!==tiltRequest)return;
+   if(permission!=='granted'){stopTilt('Motion permission was not allowed. Tap either side to steer.');return;}
+   tiltEnabled=true;tiltZero=null;dialog.classList.add('tilt-steering');tiltStatus.textContent='Hold your device comfortably to centre the steering.';
+   window.addEventListener('deviceorientation',onTilt);
+   tiltTimer=setTimeout(()=>{if(!disposed&&tiltZero===null)stopTilt('No tilt sensor detected. Tap either side to steer.');},5000);
+  }catch{if(!disposed&&request===tiltRequest)stopTilt('Tilt could not start. Tap either side to steer.');}
+  finally{if(!disposed)$('#raceTilt').disabled=false;}
+ };
  const pace=document.createElement('div');pace.className='race-pace';pace.innerHTML='<strong id="racePaceText">PACE 1.00×</strong><div class="race-pace-meter" role="progressbar" aria-label="Race pace" aria-valuemin="0" aria-valuemax="100"><i></i></div>';stage.appendChild(pace);
  function updatePace(flash=false){const p=racePace(correct,fast,learner.classLevel);$('#racePaceText').textContent='PACE '+p.multiplier.toFixed(2)+'×';pace.querySelector('i').style.width=p.percent+'%';pace.querySelector('[role="progressbar"]').setAttribute('aria-valuenow',String(Math.round(p.percent)));pace.querySelector('[role="progressbar"]').setAttribute('aria-valuetext',p.multiplier.toFixed(2)+' times starting pace');pace.classList.remove('pace-up');if(flash&&!reduced){void pace.offsetWidth;pace.classList.add('pace-up');}}
  for(const id of ['raceLeft','raceRight']){const b=$('#'+id);b.className='race-edge-control';b.innerHTML='<span aria-hidden="true">'+(id==='raceLeft'?'←':'→')+'</span>';stage.appendChild(b);}
  const geometries=new Set(),materials=new Set(),gateMeshes=[],props=[],wheels=[];
- $('#raceMusic').checked=hooks.sound!==false;$('#raceEffects').checked=hooks.sound!==false;
- let audioMuted=false;const mute=document.createElement('button');mute.id='raceMute';mute.className='secondary';$('.racer-header').appendChild(mute);
- function syncAudio(){audio.set(!audioMuted&&$('#raceMusic').checked,!audioMuted&&$('#raceEffects').checked);const silent=audioMuted||!$('#raceMusic').checked&&!$('#raceEffects').checked;mute.textContent=silent?'🔇':'🔊';mute.setAttribute('aria-label',silent?'Unmute audio':'Mute audio');mute.setAttribute('aria-pressed',String(silent));mute.title=silent?'Unmute audio':'Mute audio';}
- mute.onclick=()=>{const none=!$('#raceMusic').checked&&!$('#raceEffects').checked;if(audioMuted||none){audioMuted=false;if(none){$('#raceMusic').checked=true;$('#raceEffects').checked=true;}}else audioMuted=true;syncAudio();};
- $('#raceMusic').onchange=syncAudio;$('#raceEffects').onchange=syncAudio;syncAudio();
- function cleanup(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);observer?.disconnect();document.removeEventListener('keydown',key,true);document.removeEventListener('keyup',releaseKey);window.removeEventListener('blur',releaseAcceleration);document.removeEventListener('visibilitychange',visibility);audio.close();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer?.dispose();renderer?.forceContextLoss();dialog.remove();hooks.close();}
+ $('#raceMusic').parentElement.remove();$('#raceEffects').parentElement.remove();
+ let audioMuted=hooks.sound===false;const mute=document.createElement('button');mute.id='raceMute';mute.className='secondary';$('.racer-header').appendChild(mute);
+ function syncAudio(){audio.set(!audioMuted,!audioMuted);mute.textContent=audioMuted?'🔇':'🔊';mute.setAttribute('aria-label',audioMuted?'Unmute audio':'Mute audio');mute.setAttribute('aria-pressed',String(audioMuted));mute.title=audioMuted?'Unmute audio':'Mute audio';}
+ mute.onclick=()=>{audioMuted=!audioMuted;syncAudio();};syncAudio();
+ function cleanup(){if(disposed)return;stopTilt();touchControls.removeEventListener('change',syncControlHints);disposed=true;cancelAnimationFrame(frame);observer?.disconnect();document.removeEventListener('keydown',key,true);document.removeEventListener('keyup',releaseKey);window.removeEventListener('blur',releaseAcceleration);document.removeEventListener('visibilitychange',visibility);audio.close();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer?.dispose();renderer?.forceContextLoss();dialog.remove();hooks.close();}
  dialog.addEventListener('close',cleanup,{once:true});$('.close').onclick=()=>dialog.close();
  try{renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});}catch{$('#raceQuestion').textContent='This track needs 3D graphics';$('#raceCue').textContent='Try an up-to-date browser. Your other maths games are still available.';$('#raceStart').disabled=true;return;}
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
@@ -136,7 +169,7 @@ export function openRacer(learner,hooks){
  pedal.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();setAcceleration(true)}};pedal.onkeyup=e=>{if(e.key===' '||e.key==='Enter')releaseAcceleration()};pedal.onblur=releaseAcceleration;
  for(const surface of [canvas,$('#raceLeft'),$('#raceRight')]){
   surface.addEventListener('pointerdown',e=>{if(e.button!==0)return;touchX=e.clientX;touchY=e.clientY;surface.setPointerCapture(e.pointerId)});
-  surface.addEventListener('pointerup',e=>{if(touchX!==undefined){const dx=e.clientX-touchX,dy=e.clientY-touchY;if(dy<-24&&Math.abs(dy)>Math.abs(dx)&&phase==='drive')sprintUntil=performance.now()+1000;else if(Math.abs(dx)>24)steer(lane+(dx>0?1:-1));else if(Math.abs(dy)<24){const r=stage.getBoundingClientRect();steer(lane+(e.clientX<r.left+r.width/2?-1:1));}}touchX=touchY=undefined;});
+  surface.addEventListener('pointerup',e=>{if(touchX!==undefined){const dx=e.clientX-touchX,dy=e.clientY-touchY;if(dy<-24&&Math.abs(dy)>Math.abs(dx)&&phase==='drive')sprintUntil=performance.now()+1000;else if(!tiltEnabled&&Math.abs(dx)>24)steer(lane+(dx>0?1:-1));else if(!tiltEnabled&&Math.abs(dy)<24){const r=stage.getBoundingClientRect();steer(lane+(e.clientX<r.left+r.width/2?-1:1));}}touchX=touchY=undefined;});
   surface.addEventListener('pointercancel',()=>touchX=touchY=undefined);
  }
  function model(){return window.mathsModels?.render({kind:q.op==='×'?'group-strategy':'number-strategy',a:q.a,b:q.b,op:q.op})||'';}
@@ -156,7 +189,7 @@ export function openRacer(learner,hooks){
   $('#raceProgress').textContent=`Completed: ${correct} · Best: ${Math.max(best,correct)}`;$('#raceQuestion').textContent=q.text;updatePace();
   $('#raceCue').textContent='Choose your lane. The road gets quicker as you progress.';
   $('#raceMessage').textContent='';$('#raceMessage').className='race-message';$('.race-gates').hidden=false;$('.race-gates').replaceChildren();
-  answers.forEach((n,i)=>{const b=document.createElement('button');b.className='race-gate-label';b.textContent=String(n);b.setAttribute('aria-label',`Steer towards ${['left','middle','right'][i]} answer: ${n}`);b.onclick=()=>steer(i);$('.race-gates').appendChild(b)});positionAnswers(0);steer(lane);
+  answers.forEach((n,i)=>{const b=document.createElement('button');b.className='race-gate-label';b.textContent=String(n);b.setAttribute('aria-label',`Steer towards ${['left','middle','right'][i]} answer: ${n}`);b.onclick=()=>{if(!tiltEnabled)steer(i)};$('.race-gates').appendChild(b)});positionAnswers(0);steer(lane);
  }
  function resolve(){
   const hit=answers[lane]===q.answer;phase='feedback';feedbackTime=0;releaseAcceleration();$('.race-gates').hidden=true;gateRoot.visible=false;
@@ -174,7 +207,7 @@ export function openRacer(learner,hooks){
   $('#raceCue').textContent=`${q.text} = ${q.answer}. Take another run when you’re ready.`;
   $('#raceMessage').textContent='';$('#racePause').disabled=true;endControls.hidden=false;$('#raceSpeed').textContent='FINISH';
  }
- function startRace(){fast=$('#raceMode').value==='race';index=correct=helped=clock=travel=boost=bump=approach=0;lane=1;carX=0;accelerating=false;sprintUntil=0;completionSaved=false;questions=raceQuestions(learner.classLevel,Math.random,Infinity);endControls.hidden=true;$('.race-pit').hidden=true;$('#raceMode').disabled=true;$('#raceMode').parentElement.hidden=true;$('#raceStart').hidden=true;$('#racePause').disabled=false;audio.start(fast);nextQuestion();last=performance.now();}
+ function startRace(){tiltZero=null;fast=$('#raceMode').value==='race';index=correct=helped=clock=travel=boost=bump=approach=0;lane=1;carX=0;accelerating=false;sprintUntil=0;completionSaved=false;questions=raceQuestions(learner.classLevel,Math.random,Infinity);endControls.hidden=true;$('.race-pit').hidden=true;$('#raceMode').disabled=true;$('#raceMode').parentElement.hidden=true;$('#raceStart').hidden=true;$('#racePause').disabled=false;audio.start(fast);nextQuestion();last=performance.now();}
  $('#raceStart').onclick=startRace;$('#raceNew').onclick=startRace;
  function resize(){const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?60:48;camera.updateProjectionMatrix();}
  observer=new ResizeObserver(resize);observer.observe(stage);resize();steer(1);
