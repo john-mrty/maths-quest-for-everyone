@@ -13,12 +13,17 @@ function harness(){
   const context={console,Date,Math:Object.create(Math),crypto:{randomUUID},navigator:{},matchMedia:()=>({matches:true}),localStorage:{getItem:()=>null,setItem(){}},Event:class {},scrollTo(){},requestAnimationFrame(){},setTimeout:fn=>{timeouts.push(fn);return timeouts.length},clearTimeout(){},setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval(){},window:{addEventListener(){},dispatchEvent(){},questAdventure:{journey(){},award:()=>null,results(){}}},document:{hidden:false,querySelector:get,querySelectorAll:s=>s==='.answer'?buttons:[],createElement:element,createElementNS:element}};
   vm.createContext(context);
   let seed=41;context.Math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-const expose=`window.test={spokenMath,readingText,readAloud,stopReading,makeQuestion,makeChallengeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
+const expose=`window.test={clearScratchpad,spokenMath,readingText,readAloud,stopReading,makeQuestion,makeChallengeQuestion,questionIdentity,selectedTopic,options,questPaused,startQuest,finishQuest,answer,renderHintVisual,renderHints,renderLearningSupport,learningStage,renderParent,
     begin(level=1){data=fresh();data.learners=[{id:"test",name:"Test",classLevel:level,plan:planFor(level),mastery:{},completedResults:[],sessions:0,totalCorrect:0,totalAttempts:0,helped:0,beat:{attempts:0,correct:0,tokens:0,best:0}}];activeId="test";selectedTables=new Set([2]);session={index:0,total:12,usedQuestions:new Set(),scratchpad:[],locked:false,correct:0,independent:0,score:0};},
     session:()=>session,learner,topics:TOPICS,mode:value=>playMode=value,topic:value=>questTopic=value,hint:value=>hintLevel=value};`;
   vm.runInContext(source.replace('setup();\n})();',expose+'\n})();'),context);
   return {api:context.window.test,elements,get,buttons,timeouts,intervals,context};
 }
+
+test('clear page removes strokes immediately without confirmation or closing the workspace',()=>{
+ const h=harness();h.api.begin();h.api.session().scratchpad=[{points:[{x:1,y:1}]}];h.get('#scratchpadDialog').open=true;
+ h.api.clearScratchpad();assert.equal(h.api.session().scratchpad.length,0);assert.equal(h.get('#scratchpadDialog').open,true);
+});
 
 test('read-aloud is off by default and requires the learner opt-in',()=>{
  const h=harness(),spoken=[];h.api.begin();

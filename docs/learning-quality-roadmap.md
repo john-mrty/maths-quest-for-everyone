@@ -37,6 +37,17 @@ Verified this batch: responsive browser checks at phone/narrow-phone and desktop
 
 ## Batch 3 — replayable mathematical play
 
+- [x] Turbo Trail survival-race prototype: age-banded questions, drive-through answer numbers, three lanes, gently curving road, progressively shorter approaches, completed-sum counter, first-miss ending, per-learner personal best, central Start driving and New race controls. Hold-Up/W or the touch pedal for sustained acceleration; swipe up for a one-second burst. One pause icon also shows maths support. Original eight-bar chiptune audio remains independent of answers. No ghost opponents, drifting or multiplayer yet; child/device/audio playtesting still required.
+
+Verified 8 October: browser steering, swipe-up acceleration, merged pause/help, first-miss ending, New race restart and per-learner best persistence. Space pauses/resumes from focused accelerator buttons and music checkboxes; the pace meter showed 1.69× after three correct sums. Earlier portrait checks confirmed no horizontal overflow and usable answer/accelerator targets. Automated fact, difficulty-floor, acceleration, Space-focus, scratchpad and audio-lifecycle checks included in the 45 passing checks. Soundtrack composition/range is checked programmatically, not yet aurally evaluated on physical devices.
+
+- [x] Move steering arrows to gameplay edges, add broad touch areas and canvas-half tap steering, retain directional/upward swipes, and use a supplied gameplay image for Turbo Trail’s home tile. Browser-tested broad left/right taps.
+- [x] Space captures pause/resume before focused buttons/checkboxes handle it; held-key repeat cannot toggle rapidly. Steepen approach shrinkage from 4.5% to 16% per successful sum, keeping the minimum distance, and show a numeric PACE badge, filling meter and reduced-motion-safe pace-up pulse.
+- [x] Give 1st Class a 15% slower base speed and a gentler 10% approach shrinkage per correct sum. Keep acceleration available and all other class pacing unchanged. Per-class regression checks included in 46 passing tests.
+
+- [x] Number Trail supports direct tap/drag selection and a keyboard slider, visible directional tips, green correct-answer validation and 1,200 ms foreground-only auto-progression. Share the Treasure uses draggable gold coins and playful buckets, keeps tap alternatives, supports transfers/returns and uses the same success/advance treatment. Browser-tested direct selection, tips, tray-to-bucket dragging and both next-puzzle transitions.
+- [x] Clear scratchpad immediately without confirmation, keeping the workspace open. Cloud Crossing now has a tighter initial camera, no zoom/rotate toolbar or help button, and a ruler containing actual unit cells rather than an extra zero cell. Gesture camera interaction remains available.
+
 - [x] Replace repeated bridge rounds with one bridge followed by a flower-picking chapter: camera follows onto the island, reversible 3D picking and basket previews, keyboard/button alternatives, counting/halves/thirds by class, and completion rewards recorded as two tasks. Browser-tested scene picking, undo, correction and full completion; responsive dimensions checked. Physical-device and child retesting remain outstanding.
 - [x] Remove the redundant independent “Try it yourself” panel and add a full counter preview tray with reversible group-labelled counters to Share the Treasure.
 
