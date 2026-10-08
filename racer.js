@@ -21,7 +21,7 @@ export function drivingSpeed(fast,accelerating,boost,bump,classLevel=6){
 
 // Original two-phrase chip melody: no samples, streaming or borrowed soundtrack.
 function chipAudio(){
- let ctx,timer,step=0,music=true,effects=true,duckUntil=0,generation=0;const voices=new Set();
+ let ctx,master,timer,step=0,music=true,effects=true,duckUntil=0,generation=0;const voices=new Set();
  // Eight-bar A/B tune with register changes, rests, harmony and a contrasting reply.
  const melody=[
   [76,null,79,81,79,null,76,74,72,null,76,79,83,81,79,null],
@@ -37,10 +37,10 @@ function chipAudio(){
  function note(midi,length,type='square',volume=.025){
   if(!ctx||ctx.state!=='running')return;const o=ctx.createOscillator(),g=ctx.createGain(),now=ctx.currentTime;
   o.type=type;o.frequency.value=440*2**((midi-69)/12);g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(volume,now+.008);g.gain.exponentialRampToValueAtTime(.0001,now+length);
-  o.connect(g);g.connect(ctx.destination);voices.add(o);o.onended=()=>{voices.delete(o);g.disconnect()};o.start();o.stop(now+length+.02);
+  o.connect(g);g.connect(master||ctx.destination);voices.add(o);o.onended=()=>{voices.delete(o);g.disconnect()};o.start();o.stop(now+length+.02);
  }
  return {
-  async start(fast){const token=generation;try{ctx??=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();if(token!==generation||timer)return;timer=setInterval(()=>{
+  async start(fast){const token=generation;try{ctx??=new (window.AudioContext||window.webkitAudioContext)();if(!master){master=ctx.createGain();master.gain.value=music||effects?1:0;master.connect(ctx.destination);}await ctx.resume();if(token!==generation||timer)return;timer=setInterval(()=>{
    if(!music)return;const gain=Date.now()<duckUntil ? .3 : 1,bar=Math.floor(step/16)%8,beat=step%16,m=melody[bar][beat],chord=chords[bar%4];
    if(m!==null)note(m,beat%4===0 ? .24 : .13,'square',.025*gain);
    if(beat%2===0)note(bassRoots[bar%4]+(beat===6||beat===14?12:0),.16,'triangle',.045*gain);
@@ -51,7 +51,7 @@ function chipAudio(){
    step=(step+1)%128;
   },fast?110:125);}catch{}},
   sound(kind){if(kind==='bump')duckUntil=Date.now()+1800;if(!effects)return;if(kind==='boost'){note(79,.1,'triangle',.09);setTimeout(()=>note(91,.22,'triangle',.07),90);}else if(kind==='bump')note(40,.18,'triangle',.07);else if(kind==='finish')[72,76,79,84].forEach((n,i)=>setTimeout(()=>note(n,.25,'square',.04),i*120));},
-  set(m,e){music=m;effects=e;},pause(){generation++;clearInterval(timer);timer=null;voices.forEach(o=>{try{o.stop()}catch{}});},
+  set(m,e){music=m;effects=e;if(master)master.gain.setValueAtTime(music||effects?1:0,ctx.currentTime);},pause(){generation++;clearInterval(timer);timer=null;voices.forEach(o=>{try{o.stop()}catch{}});},
   close(){this.pause();ctx?.close();}
  };
 }
@@ -70,12 +70,17 @@ export function openRacer(learner,hooks){
  $('#racePause').textContent='Ⅱ';$('#racePause').setAttribute('aria-label','Pause and work it out');
  const endControls=document.createElement('div');endControls.className='race-end-controls';endControls.hidden=true;endControls.innerHTML='<button class="primary" id="raceNew">New race</button><button class="secondary" id="raceBack">Back to games</button>';$('.racer-hud').appendChild(endControls);
  $('#raceBack').onclick=()=>dialog.close();
+ $('#raceMode').value=learner.turboDrivingStyle==='race'?'race':'cruise';
+ $('#raceMode').onchange=()=>hooks.onDrivingStyle?.($('#raceMode').value);
+ $('.race-audio>span').textContent='← → steer · hold ↑ / W to accelerate · swipe up for a burst · Spacebar to pause game';
  const pace=document.createElement('div');pace.className='race-pace';pace.innerHTML='<strong id="racePaceText">PACE 1.00×</strong><div class="race-pace-meter" role="progressbar" aria-label="Race pace" aria-valuemin="0" aria-valuemax="100"><i></i></div>';stage.appendChild(pace);
  function updatePace(flash=false){const p=racePace(correct,fast,learner.classLevel);$('#racePaceText').textContent='PACE '+p.multiplier.toFixed(2)+'×';pace.querySelector('i').style.width=p.percent+'%';pace.querySelector('[role="progressbar"]').setAttribute('aria-valuenow',String(Math.round(p.percent)));pace.querySelector('[role="progressbar"]').setAttribute('aria-valuetext',p.multiplier.toFixed(2)+' times starting pace');pace.classList.remove('pace-up');if(flash&&!reduced){void pace.offsetWidth;pace.classList.add('pace-up');}}
  for(const id of ['raceLeft','raceRight']){const b=$('#'+id);b.className='race-edge-control';b.innerHTML='<span aria-hidden="true">'+(id==='raceLeft'?'←':'→')+'</span>';stage.appendChild(b);}
  const geometries=new Set(),materials=new Set(),gateMeshes=[],props=[],wheels=[];
  $('#raceMusic').checked=hooks.sound!==false;$('#raceEffects').checked=hooks.sound!==false;
- function syncAudio(){audio.set($('#raceMusic').checked,$('#raceEffects').checked);}
+ let audioMuted=false;const mute=document.createElement('button');mute.id='raceMute';mute.className='secondary';$('.racer-header').appendChild(mute);
+ function syncAudio(){audio.set(!audioMuted&&$('#raceMusic').checked,!audioMuted&&$('#raceEffects').checked);const silent=audioMuted||!$('#raceMusic').checked&&!$('#raceEffects').checked;mute.textContent=silent?'🔇':'🔊';mute.setAttribute('aria-label',silent?'Unmute audio':'Mute audio');mute.setAttribute('aria-pressed',String(silent));mute.title=silent?'Unmute audio':'Mute audio';}
+ mute.onclick=()=>{const none=!$('#raceMusic').checked&&!$('#raceEffects').checked;if(audioMuted||none){audioMuted=false;if(none){$('#raceMusic').checked=true;$('#raceEffects').checked=true;}}else audioMuted=true;syncAudio();};
  $('#raceMusic').onchange=syncAudio;$('#raceEffects').onchange=syncAudio;syncAudio();
  function cleanup(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);observer?.disconnect();document.removeEventListener('keydown',key,true);document.removeEventListener('keyup',releaseKey);window.removeEventListener('blur',releaseAcceleration);document.removeEventListener('visibilitychange',visibility);audio.close();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer?.dispose();renderer?.forceContextLoss();dialog.remove();hooks.close();}
  dialog.addEventListener('close',cleanup,{once:true});$('.close').onclick=()=>dialog.close();
@@ -126,7 +131,7 @@ export function openRacer(learner,hooks){
   if(['1','2','3'].includes(e.key))steer(Number(e.key)-1);
  }
  document.addEventListener('keydown',key,true);document.addEventListener('keyup',releaseKey);window.addEventListener('blur',releaseAcceleration);let touchX,touchY;
- const pedal=document.createElement('button');pedal.id='raceAccelerate';pedal.className='primary';pedal.textContent='↑ Accelerate';pedal.setAttribute('aria-label','Hold to accelerate');pedal.setAttribute('aria-pressed','false');$('#raceLane').after(pedal);
+ const pedal=document.createElement('button');pedal.id='raceAccelerate';pedal.className='secondary';pedal.textContent='↑ Accelerate';pedal.setAttribute('aria-label','Hold to accelerate');pedal.setAttribute('aria-pressed','false');$('.race-options').appendChild(pedal);
  pedal.onpointerdown=e=>{e.preventDefault();pedal.setPointerCapture(e.pointerId);setAcceleration(true)};pedal.onpointerup=releaseAcceleration;pedal.onpointercancel=releaseAcceleration;pedal.onlostpointercapture=releaseAcceleration;
  pedal.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();setAcceleration(true)}};pedal.onkeyup=e=>{if(e.key===' '||e.key==='Enter')releaseAcceleration()};pedal.onblur=releaseAcceleration;
  for(const surface of [canvas,$('#raceLeft'),$('#raceRight')]){
@@ -140,18 +145,18 @@ export function openRacer(learner,hooks){
   $('#racePitTitle').textContent=help?'Work it out':'Taking a breather';$('#racePitCopy').textContent=help?(q.op==='×'?`${q.a} groups of ${q.b}. Count in ${q.b}s to find the total.`:`Start with ${q.a}, then add ${q.b}. Count both parts.`):'The kart is parked safely. Nothing moves until you are ready.';
   $('#raceModel').innerHTML=help?model():'';if(help&&!q.helped){helped++;q.helped=true;}$('#racePause').textContent='▶';$('#racePause').setAttribute('aria-label','Resume race');$('.race-gates').hidden=true;
  }
- function resume(){if(phase!=='pause')return;phase=beforePause;$('.race-pit').hidden=true;$('#racePause').textContent='Ⅱ';$('#racePause').setAttribute('aria-label','Pause and work it out');audio.start(fast);$('.race-gates').hidden=phase!=='drive'||clock<.55;last=performance.now();}
+ function resume(){if(phase!=='pause')return;phase=beforePause;$('.race-pit').hidden=true;$('#racePause').textContent='Ⅱ';$('#racePause').setAttribute('aria-label','Pause and work it out');audio.start(fast);$('.race-gates').hidden=phase!=='drive';last=performance.now();}
  function togglePause(){phase==='pause'?resume():pause();}
  function visibility(){if(document.hidden)pause();}
  document.addEventListener('visibilitychange',visibility);$('#racePause').onclick=togglePause;$('#raceResume').onclick=resume;
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();pause();$('#racePitCopy').textContent='The graphics paused. Close this race and reopen it to try again.';$('#raceResume').disabled=true;$('#raceStart').disabled=true;});
  function nextQuestion(){
   if(index>=questions.length){const recent=new Set(questions.slice(-8).map(q=>q.text));questions.push(...raceQuestions(learner.classLevel,Math.random,Infinity).filter(q=>!recent.has(q.text)));}
-  q=questions[index];answers=gateAnswers(q);clock=0;approach=0;phase='drive';gateRoot.visible=false;
+  q=questions[index];answers=gateAnswers(q);clock=0;approach=0;phase='drive';gateRoot.visible=true;
   $('#raceProgress').textContent=`Completed: ${correct} · Best: ${Math.max(best,correct)}`;$('#raceQuestion').textContent=q.text;updatePace();
   $('#raceCue').textContent='Choose your lane. The road gets quicker as you progress.';
-  $('#raceMessage').textContent='';$('#raceMessage').className='race-message';$('.race-gates').hidden=true;$('.race-gates').replaceChildren();
-  answers.forEach((n,i)=>{const b=document.createElement('button');b.className='race-gate-label';b.textContent=String(n);b.setAttribute('aria-label',`Steer towards ${['left','middle','right'][i]} answer: ${n}`);b.onclick=()=>steer(i);$('.race-gates').appendChild(b)});steer(lane);
+  $('#raceMessage').textContent='';$('#raceMessage').className='race-message';$('.race-gates').hidden=false;$('.race-gates').replaceChildren();
+  answers.forEach((n,i)=>{const b=document.createElement('button');b.className='race-gate-label';b.textContent=String(n);b.setAttribute('aria-label',`Steer towards ${['left','middle','right'][i]} answer: ${n}`);b.onclick=()=>steer(i);$('.race-gates').appendChild(b)});positionAnswers(0);steer(lane);
  }
  function resolve(){
   const hit=answers[lane]===q.answer;phase='feedback';feedbackTime=0;releaseAcceleration();$('.race-gates').hidden=true;gateRoot.visible=false;
@@ -174,6 +179,16 @@ export function openRacer(learner,hooks){
  function resize(){const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.fov=width<600?60:48;camera.updateProjectionMatrix();}
  observer=new ResizeObserver(resize);observer.observe(stage);resize();steer(1);
  const projection=new T.Vector3();
+ function positionAnswers(p){
+  const startZ=stage.clientWidth<600?-8:-18;gateRoot.position.z=startZ+p*(4-startZ);gateRoot.position.x=curve(gateRoot.position.z);
+  $('.race-gates').querySelectorAll('button').forEach((b,i)=>{
+   projection.set(gateRoot.position.x+(i-1)*3.2,1,gateRoot.position.z);projection.project(camera);
+   const edge=stage.clientWidth<600?16:10;
+   b.style.left=`${T.MathUtils.clamp((projection.x+1)/2*100,edge,100-edge)}%`;
+   b.style.top=`${T.MathUtils.clamp((1-projection.y)/2*100,53,78)}%`;
+   b.style.fontSize=`${stage.clientWidth<600?18+p*24:22+p*26}px`;
+  });
+ }
  function tick(now){
   if(disposed)return;frame=requestAnimationFrame(tick);const dt=Math.min(.05,(now-(last||now))/1000);last=now;
   if(document.hidden)return;
@@ -185,18 +200,8 @@ export function openRacer(learner,hooks){
    props.forEach(g=>{g.position.z=8-(((-g.userData.z-travel)%102+102)%102);g.position.x=g.userData.x+curve(g.position.z)});
    wheels.forEach(w=>w.rotation.x-=dt*speed*2);
    if(phase==='drive'){
-    clock+=dt;if(clock>.55)approach+=dt*speed;const distance=approachDistance(correct,fast,learner.classLevel),p=Math.min(1,approach/distance);
-    const startZ=stage.clientWidth<600?-8:-18;
-    gateRoot.visible=clock>=.55;gateRoot.position.z=startZ+p*(4-startZ);gateRoot.position.x=curve(gateRoot.position.z);$('.race-gates').hidden=clock<.55;
-    $('.race-gates').querySelectorAll('button').forEach((b,i)=>{
-     projection.set(gateRoot.position.x+(i-1)*3.2,1,gateRoot.position.z);projection.project(camera);
-     // Project onto the actual three road lanes, with a closer spawn on phones.
-     const projected=(projection.x+1)/2*100;
-     const edge=stage.clientWidth<600?16:10;
-     b.style.left=`${T.MathUtils.clamp(projected,edge,100-edge)}%`;
-     b.style.top=`${T.MathUtils.clamp((1-projection.y)/2*100,53,78)}%`;
-     b.style.fontSize=`${stage.clientWidth<600?18+p*24:22+p*26}px`;
-    });
+    clock+=dt;approach+=dt*speed;const distance=approachDistance(correct,fast,learner.classLevel),p=Math.min(1,approach/distance);
+    gateRoot.visible=true;$('.race-gates').hidden=false;positionAnswers(p);
     if(p>=1){q.passed=answers[lane]===q.answer;resolve();}
    }else{feedbackTime+=dt;if(feedbackTime>(q.passed ? .65 : 1.8)){if(!q.passed)finish();else{index++;nextQuestion();}}}
   }

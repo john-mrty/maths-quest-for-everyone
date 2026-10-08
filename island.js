@@ -31,8 +31,10 @@ export function openIsland(learner, hooks) {
   const dialog=document.createElement('dialog');dialog.className='island-dialog';dialog.setAttribute('aria-labelledby','islandTitle');
   dialog.innerHTML=`<div class="island-shell"><header class="island-header"><div><span class="island-kicker">QUEST ISLAND · A PLAYABLE LITTLE WORLD</span><h2 id="islandTitle">Cloud Crossing</h2></div><button class="close" aria-label="Close Cloud Crossing">×</button></header><div class="island-stage"><div class="island-arrival"><span>Somewhere above the clouds…</span></div><div class="island-chapter">CHAPTER <b>1 / 2</b></div><div class="island-caption">Help Pip find a way home.</div></div><section class="island-workbench"><div class="island-instruction"><div><p class="island-kicker" id="islandStep">BUILD A LITTLE POSSIBILITY</p><h3 id="islandTask"></h3><p id="islandExplain"></p></div><div class="island-meter" aria-label="Bridge length"><strong id="islandLength"></strong><span>length built</span></div></div><div class="island-tools"><div class="island-pieces" aria-label="Choose bridge pieces"></div><div class="island-actions"><button class="secondary" id="islandUndo">Undo</button><button class="primary" id="islandCheck">Try the bridge</button></div></div><p id="islandFeedback" role="status" aria-live="polite"></p></section></div>`;
   document.body.appendChild(dialog);dialog.showModal();const $=s=>dialog.querySelector(s),stage=$('.island-stage');
-const missionSeed=1+Math.floor(Math.random()*10000);let renderer,frame=0,disposed=false,round=0,pieces=[],locked=false,won=false,checks=0,helped=false,firstTry=0,independent=0,hints=0,mission=missionFor(learner.classLevel,0,missionSeed),yaw=0,viewYaw=0,pitch=.49,viewPitch=.49,zoom=1,homeZoom=1.75,crossedAt=0,crossing=false;
+let missionSeed=1+Math.floor(Math.random()*10000);let renderer,frame=0,disposed=false,round=0,pieces=[],locked=false,won=false,checks=0,helped=false,firstTry=0,independent=0,hints=0,bridgeCompletions=0,mission=missionFor(learner.classLevel,0,missionSeed),yaw=0,viewYaw=0,pitch=.49,viewPitch=.49,zoom=1,homeZoom=1.75,crossedAt=0,crossing=false;
   const started=performance.now(),geometries=new Set(),materials=new Set(),textures=new Set(),animated=[],blooms=[],confetti=[];
+  const restart=document.createElement('button');restart.id='islandRestart';restart.className='secondary';restart.textContent='Restart bridge';restart.hidden=true;$('#islandCheck').before(restart);
+  restart.onclick=()=>{if(locked||crossing||chapter!=='bridge'||!crossedAt)return;restart.hidden=true;crossedAt=0;missionSeed++;viewYaw=0;viewPitch=.49;zoom=1;pip.rotation.set(0,0,0);$('.island-caption').textContent='A new crossing. Try another bridge!';prompt();};
   let observer;let chapter="bridge",focusX=0,flowers=[],bouquet=[],flowerGoal=flowerMission(learner.classLevel,missionSeed);
   function cleanup(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);observer?.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer?.dispose();renderer?.forceContextLoss();dialog.remove();hooks.close();}
   dialog.addEventListener('close',cleanup,{once:true});$('.close').onclick=()=>dialog.close();
@@ -136,12 +138,13 @@ const missionSeed=1+Math.floor(Math.random()*10000);let renderer,frame=0,dispose
     }
   }
   function finishCrossing(){
-    crossing=false;locked=false;pip.rotation.z=0;
-    $('#islandFeedback').textContent='You crossed the river! Now pick a bouquet for Pip’s friend.';
+    crossing=false;locked=false;pip.rotation.z=0;bridgeCompletions++;restart.hidden=false;
+    $('#islandFeedback').textContent='You crossed the river! Build another bridge, or pick a bouquet for Pip’s friend.';
     $('#islandCheck').disabled=false;$('#islandCheck').textContent='Pick some flowers';
     $('#islandUndo').disabled=true;
   }
   function startFlowers(){
+    restart.hidden=true;
     chapter='flowers';checks=0;helped=false;locked=false;viewYaw=0;viewPitch=.6;zoom=.94;
     canvas.setAttribute('aria-label','Pip’s flower garden. Tap yellow or pink flowers to pick them, or use the flower buttons below.');
     $('.island-chapter b').textContent='2 / 2';
@@ -185,11 +188,11 @@ const missionSeed=1+Math.floor(Math.random()*10000);let renderer,frame=0,dispose
     $('#islandUndo').disabled=won||!bouquet.length;$('#islandCheck').disabled=won;
   }
   function celebrate(){
-    won=true;const reward=hooks.complete({firstTry,independent,hints,questions:2});
+    won=true;const reward=hooks.complete({firstTry,independent,hints,questions:bridgeCompletions+1});
     // Replant the picked blooms beside the friend as a visible bouquet.
     bouquet.forEach((f,i)=>{f.visible=true;f.position.set(2.5+(i%4)*.16,.7,.35+Math.floor(i/4)*.16);f.scale.setScalar(.65)});
     renderBasket();$('#islandStep').textContent='A LITTLE ADVENTURE COMPLETE';
-    $('#islandTask').textContent='A bridge built. A friend made happy.';
+    $('#islandTask').textContent=bridgeCompletions>1?`${bridgeCompletions} bridges built. A friend made happy.`:'A bridge built. A friend made happy.';
     $('#islandExplain').textContent=reward?`${reward.name} unlocked for your collection.`:'Another adventure added to your collection.';
     $('#islandFeedback').textContent='Your bouquet has just the right colours. Pip’s friend loves it!';
     $('.island-caption').textContent='Thank you, Pip!';$('#islandCheck').disabled=false;$('#islandCheck').textContent='Back to games';hooks.sound?.('finish');
